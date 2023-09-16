@@ -1,0 +1,30 @@
+name: master
+
+on:
+  push:
+    branches: [master]
+    tags: ["*"]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: install git
+      run: apt-get update && apt-get install -y git && git version
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0   
+    - run: ls -lhatr
+    - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    - run: git describe --tags    
+    - name: Compile
+      run: sbt clean +test 
+    - name: Publish
+      run: sbt -mem 3000 ci-release
+      env:
+        PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+        PGP_SECRET: ${{ secrets.PGP_SECRET }}
+        SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+        SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}   

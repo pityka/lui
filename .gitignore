@@ -1,0 +1,7 @@
+.bloop/
+.vscode/
+.metals/
+node_modules/
+target/
+metals.sbt
+.bsp/

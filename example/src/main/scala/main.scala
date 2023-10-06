@@ -2,6 +2,7 @@ package example
 
 import com.raquo.laminar.api.L._
 import lui.{stack => st}
+import org.scalajs.dom
 object Demo {
   val s = Signal.fromValue("s")
   val but = st.Button(

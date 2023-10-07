@@ -24,6 +24,7 @@ private[stack] trait KeyValues {
   val theme = new InSyntax[theme]
   val title = new InSyntax[title]
   val active = new InSyntax[active]
+  val withCloseButton = new InSyntax[withCloseButton]
 
   val value = new OutSyntax[value]
   val checked = new OutSyntax[checked]

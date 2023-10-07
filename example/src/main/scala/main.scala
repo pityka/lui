@@ -115,16 +115,30 @@ object Demo {
         }
       ),
       {
-        val open = button(
-          typ := "button",
-          "open modal"
+        val open = st.Button(
+          st.label:="open modal"
         )
         div(
           open,
           st.Modal(
             st.child := (p("blah blah"): HtmlElement),
             st.title := "title title title",
-            st.active <-- open.events(onClick).mapToUnit.map(_ => true)
+            st.active <-- open.click.toObservable.map(_ => true)
+          )
+        )
+      },
+      {
+        val state= Var(false)
+        val but = st.Button(
+          st.label := "toggle pop",
+          st.value --> state.updater[Unit]((b,_) => !b)
+        )
+        div(
+          position :="relative",
+          but,
+          st.Popover(
+            st.child := (p("blah blah"): HtmlElement),
+            st.active <-- state.signal,
           )
         )
       },

@@ -17,6 +17,7 @@ private[stack] object KeyTypes {
   sealed trait message
   sealed trait horizontal
   sealed trait child
+  sealed trait withCloseButton
   sealed trait children
   sealed trait checked
   sealed trait theme

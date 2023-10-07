@@ -15,7 +15,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: olafurpg/setup-gpg@v3
       - run: sbt -J-Xmx3000m versionCheck ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}

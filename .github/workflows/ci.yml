@@ -13,4 +13,4 @@ jobs:
       with:
         fetch-depth: 0    
     - name: Compile
-      run: sbt clean +test
+      run: sbt clean versionPolicyCheck +test

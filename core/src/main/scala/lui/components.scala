@@ -1,6 +1,10 @@
 package lui
-import com.raquo.laminar.api.L.{Sink, Signal, Source}
+import com.raquo.laminar.api.L.{Sink, Signal, Source, Modifier, HtmlElement}
 import util._
+ trait Comp extends Modifier[HtmlElement] {
+    def root : HtmlElement
+    override def apply(element: HtmlElement): Unit = root(element)
+  }
 class InSyntax[K] {
   def :=[B, V](v: V)(implicit ev: Key[K, B, Source[V]]): Mod[B] = ev(
     Signal.fromValue(v)

@@ -32,11 +32,8 @@ object Checkbox {
       Signal.fromValue(false)
     )
   }
-  case class Component(root: HtmlElement, checked: Signal[(String, Boolean)])
-  object Component {
-    import scala.language.implicitConversions
-    implicit def conv(c: Component): HtmlElement = c.root
-  }
+  case class Component(root: HtmlElement, checked: Signal[(String, Boolean)]) extends Comp
+  
   private type In[K, V] = Key[K, Param, Source[V]]
   private type Out[K, V] = Key[K, Param, Sink[V]]
 
@@ -150,11 +147,8 @@ object CheckGroup {
       Observer.empty[Seq[String]]
     )
   }
-  case class Component(root: HtmlElement, checked: Signal[Seq[String]])
-  object Component {
-    import scala.language.implicitConversions
-    implicit def conv(c: Component): HtmlElement = c.root
-  }
+  case class Component(root: HtmlElement, checked: Signal[Seq[String]]) extends Comp
+  
   private type In[K, V] = Key[K, Param, Source[V]]
   private type Out[K, V] = Key[K, Param, Sink[V]]
 

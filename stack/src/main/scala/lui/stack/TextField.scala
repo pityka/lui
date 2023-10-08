@@ -33,10 +33,8 @@ object TextField {
     )
   }
   case class Component(root: HtmlElement, value: Signal[String])
-  object Component {
-    import scala.language.implicitConversions
-    implicit def conv(c: Component): HtmlElement = c.root
-  }
+      extends Comp
+
   private type In[K, V] = Key[K, Param, Source[V]]
   private type Out[K, V] = Key[K, Param, Sink[V]]
 

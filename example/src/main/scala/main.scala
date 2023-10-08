@@ -7,7 +7,7 @@ object Demo {
 
   val firstName = st
     .TextField(
-      st.label := "First Name"
+      st.label := "First Name",
     )
   val lastName = st
     .TextField(
@@ -54,8 +54,7 @@ object Demo {
       val valid = f.nonEmpty && l.nonEmpty && z.nonEmpty && z.forall(
         _.isDigit
       ) && z.toInt > 0
-      println(valid)
-      (valid, likes, all)
+      (valid, s"$f $l from $z likes $likes", all)
     }
 
   val counter = Var(0)
@@ -79,7 +78,10 @@ object Demo {
     )
 
   val selecteds = Var(Set.empty[String])
-  val base = "By submitting this form you agree to eat bananas. At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.".toLowerCase().split(" ")
+  val base =
+    "By submitting this form you agree to eat bananas. At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga."
+      .toLowerCase()
+      .split(" ")
 
   def root() = div(
     cls := "d-flex mx-auto w100 wmx12",
@@ -100,7 +102,7 @@ object Demo {
           ),
           pre(
             cls := "s-code-block",
-            child.text <-- formStateAlways.changes.filter(_._1).map(_._2)
+            child.text <-- formStateAlways.map(_._2)
           ),
           p(
             child.text <-- formStateWhenClicked.map(v =>
@@ -164,19 +166,20 @@ object Demo {
             ),
             div(
               cls := "d-flex fw-wrap gx8",
-              children <-- searchField.value.map{ keyw =>
-                if (keyw.isEmpty()) Nil 
-                else  
-                base.filter(_.contains(keyw)).toList.distinct.map{ word =>
-                  st.Checkbox(
-                    st.label := word,
-                    st.inChecked <-- selecteds.signal.map(v => v.contains(word)),
-                    st.checked --> selecteds.updater[Boolean]{
-                      case (set,true) => set + word 
-                      case (set,false) =>  set - word
-                    }
-                  ).root
-                }
+              children <-- searchField.value.map { keyw =>
+                if (keyw.isEmpty()) Nil
+                else
+                  base.filter(_.contains(keyw)).toList.distinct.map { word =>
+                    st.Checkbox(
+                      st.label := word,
+                      st.inChecked <-- selecteds.signal
+                        .map(v => v.contains(word)),
+                      st.checked --> selecteds.updater[Boolean] {
+                        case (set, true)  => set + word
+                        case (set, false) => set - word
+                      }
+                    ).root
+                  }
               }
             )
           )
@@ -184,144 +187,7 @@ object Demo {
       )
     )
   )
-  def rootOld() = {
-    div(
-      div(
-        st
-          .TextField(
-            st.label := "Name",
-            st.placeholder := "placeholder..",
-            st.description := "description",
-            st.message := "message",
-            st.value --> Observer[String](println)
-          )
-      ),
-      div(
-        st.TextArea(
-          st.label := "Name",
-          st.placeholder := "placeholder..",
-          st.description := "description",
-          st.message := "message",
-          st.value --> Observer[String](println)
-        )
-      ),
-      div(
-        st.Select(
-          st.label := "Name",
-          st.description := "description",
-          st.message := "message",
-          st.options := Seq("a", "b", "c"),
-          st.value --> Observer[Int](println)
-        )
-      ),
-      div(
-        st.CheckGroup(
-          st.label := "group name",
-          st.horizontal := true,
-          st.child := st.Checkbox(
-            st.label := "Name",
-            st.description := "description",
-            st.message := "message",
-            st.inValue := "ch1",
-            st.checked --> Observer[Boolean](println)
-          ),
-          st.child := st.Checkbox(
-            st.label := "Name2",
-            st.inValue := "ch2",
-            st.description := "description",
-            st.message := "message",
-            st.checked --> Observer[Boolean](println)
-          ),
-          st.checked --> Observer[Seq[String]](println)
-        )
-      ),
-      div(
-        st.RadioGroup(
-          st.label := "group name",
-          st.horizontal := true,
-          st.child := st.RadioOption(
-            st.label := "Name",
-            st.description := "description",
-            st.message := "message",
-            st.checked --> Observer[Boolean](println),
-            st.name := "radio1",
-            st.inValue := "n1"
-          ),
-          st.child := st.RadioOption(
-            st.label := "Name2",
-            st.description := "description",
-            st.message := "message",
-            st.checked --> Observer[Boolean](println),
-            st.name := "radio1",
-            st.inValue := "n2",
-            st.disabled := true
-          ),
-          st.checked --> Observer[Option[String]](println)
-        )
-      ),
-      div(
-        {
-          val nav = st.NavigationGroup[Int](
-            st.theme := st.NavigationStyle.NavigationMuted,
-            st.child := st.NavigationItem(1)(st.label := "111"),
-            st.child := st.NavigationItem(2)(st.label := "222")
-          )
-          List(
-            nav.root,
-            div(
-              child <-- nav.value.toObservable.map(i => div(i.toString))
-            )
-          )
-        }
-      ),
-      div(
-        {
-          val nav = st.MenuGroup[Int](
-            st.child := st.MenuItem(1)(st.label := "111"),
-            st.child := st.MenuItem(2)(st.label := "222")
-          )
-          List(
-            nav.root,
-            div(
-              child <-- nav.value.toObservable.map(i => div(i.toString))
-            )
-          )
-        }
-      ), {
-        val open = st.Button(
-          st.label := "open modal"
-        )
-        div(
-          open,
-          st.Modal(
-            st.child := (p("blah blah"): HtmlElement),
-            st.title := "title title title",
-            st.active <-- open.click.toObservable.map(_ => true)
-          )
-        )
-      }, {
-        val state = Var(false)
-        val but = st.Button(
-          st.label := "toggle pop",
-          st.value --> state.updater[Unit]((b, _) => !b)
-        )
-        div(
-          position := "relative",
-          but,
-          st.Popover(
-            st.child := (p("blah blah"): HtmlElement),
-            st.active <-- state.signal
-          )
-        )
-      },
-      div(
-        st.Banner(
-          st.child := (span("something soem"): HtmlElement)
-        )
-      )
-    )
-
-  }
+ 
 }
 
 object main extends App {

@@ -32,11 +32,8 @@ object Button {
       Signal.fromValue(false)
     )
   }
-  case class Component(root: HtmlElement, click: EventStream[Unit])
-  object Component {
-    import scala.language.implicitConversions
-    implicit def conv(c: Component): HtmlElement = c.root
-  }
+  case class Component(root: HtmlElement, click: EventStream[Unit]) extends Comp
+  
   private type In[K, V] = Key[K, Param, Source[V]]
   private type Out[K, V] = Key[K, Param, Sink[V]]
 

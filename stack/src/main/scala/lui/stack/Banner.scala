@@ -47,11 +47,8 @@ object Banner {
   val WarningImportant: Variant = Variant.WarningImportant
   val DangerImportant: Variant = Variant.DangerImportant
 
-  case class Component(root: HtmlElement)
-  object Component {
-    import scala.language.implicitConversions
-    implicit def conv(c: Component): HtmlElement = c.root
-  }
+  case class Component(root: HtmlElement) extends Comp
+  
   private type In[K, V] = Key[K, Param, Source[V]]
   private type Out[K, V] = Key[K, Param, Sink[V]]
 

@@ -94,7 +94,8 @@ lazy val root = project
   .enablePlugins(ScalaJSPlugin)
   .settings(commonSettings: _*)
   .settings(
-    publishArtifact := false
+    publishArtifact := false,
+    publish / skip := true
   )
   .aggregate(example, core, stack)
 
@@ -104,6 +105,8 @@ lazy val example = project
   .settings(commonSettings: _*)
   .settings(
     publishArtifact := false,
+    publishArtifact := false,
+    publish / skip := true,
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)

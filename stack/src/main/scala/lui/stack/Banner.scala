@@ -70,7 +70,7 @@ object Banner {
       b.activeIn.toObservable.toWeakSignal
         .map(_.getOrElse(false))
         .changes
-    )
+    ).toWeakSignal.map(_.getOrElse(false))
 
     val root = div(
       cls <-- b.variant.toObservable.map { variant =>
@@ -88,7 +88,7 @@ object Banner {
           case Variant.DangerImportant => "s-banner__danger s-banner__important"
         }) + base
       },
-      aria.hidden <-- effectiveState.map(b => !b),
+      hidden <-- effectiveState.map(b => !b),
       div(
         cls := "d-flex flex__center s-banner__container",
         div(cls := "g8", L.child <-- b.child),

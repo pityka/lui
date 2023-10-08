@@ -15,6 +15,7 @@ object Checkbox {
       description: Source[String],
       validationMessage: Source[String],
       inValue: Source[String],
+      inChecked: Source[Boolean],
       checked: Sink[Boolean],
       validation: Source[Option[Validation]],
       disabled: Source[Boolean]
@@ -25,12 +26,13 @@ object Checkbox {
       Signal.fromValue(""),
       Signal.fromValue(""),
       Signal.fromValue(""),
+      Signal.fromValue(false),
       Observer.empty[Boolean],
       Signal.fromValue(None),
       Signal.fromValue(false)
     )
   }
-  case class Component(root: HtmlElement, checked: Source[(String, Boolean)])
+  case class Component(root: HtmlElement, checked: Signal[(String, Boolean)])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component): HtmlElement = c.root
@@ -49,6 +51,8 @@ object Checkbox {
     mk((b, v) => b.copy(disabled = v))
   implicit val assignValue: In[K.inValue, String] =
     mk((b, v) => b.copy(inValue = v))
+  implicit val assignChecked: In[K.inChecked, Boolean] =
+    mk((b, v) => b.copy(inChecked = v))
 
   implicit val assignVariant: In[K.variant, Option[Checkbox.Validation]] =
     mk((b, v) => b.copy(validation = v))
@@ -94,7 +98,8 @@ object Checkbox {
       onInput.mapToChecked --> b.checked,
       L.disabled <-- b.disabled,
       idAttr := rand,
-      L.value <-- b.inValue
+      L.value <-- b.inValue,
+      L.checked <-- b.inChecked
     )
 
     val root = div(
@@ -111,7 +116,17 @@ object Checkbox {
         )
       )
     )
-    Component(root, i.events(onInput).map(_ => (i.ref.value, i.ref.checked)))
+    Component(
+      root,
+      i.events(onInput)
+        .map(_ => (i.ref.value, i.ref.checked))
+        .toWeakSignal
+        .map(
+          _.getOrElse(
+            (i.ref.value, i.ref.checked)
+          )
+        )
+    )
   }
 
 }
@@ -135,7 +150,7 @@ object CheckGroup {
       Observer.empty[Seq[String]]
     )
   }
-  case class Component(root: HtmlElement, checked: Source[Seq[String]])
+  case class Component(root: HtmlElement, checked: Signal[Seq[String]])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component): HtmlElement = c.root
@@ -175,14 +190,16 @@ object CheckGroup {
       if (h) "s-check-group s-check-group__horizontal"
       else "s-check-group"
     }
-    val unifiedSource = b.children.toObservable.flatMap { chil =>
-      Signal
-        .sequence(
-          chil.map(
-            _.checked.toObservable.toWeakSignal.map(_.filter(_._2).map(_._1))
+    val unifiedSource = b.children.toObservable.toWeakSignal.flatMap {
+      case None => Signal.fromValue(Nil)
+      case Some(chil) =>
+        Signal
+          .sequence(
+            chil.map(
+              _.checked.toObservable.toWeakSignal.map(_.filter(_._2).map(_._1))
+            )
           )
-        )
-        .map(_.flatten)
+          .map(_.flatten)
     }
     val root = fieldSet(
       cls <-- containerStyle,

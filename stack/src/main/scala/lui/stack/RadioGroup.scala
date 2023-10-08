@@ -32,7 +32,7 @@ object RadioOption {
       Signal.fromValue(false)
     )
   }
-  case class Component(root: HtmlElement, checked: Source[(String, Boolean)])
+  case class Component(root: HtmlElement, checked: Signal[(String, Boolean)])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component): HtmlElement = c.root
@@ -116,7 +116,17 @@ object RadioOption {
         )
       )
     )
-    Component(root, i.events(onInput).map(_ => (i.ref.value, i.ref.checked)))
+    Component(
+      root,
+      i.events(onInput)
+        .map(_ => (i.ref.value, i.ref.checked))
+        .toWeakSignal
+        .map(
+          _.getOrElse(
+            (i.ref.value, i.ref.checked)
+          )
+        )
+    )
   }
 
 }
@@ -140,7 +150,7 @@ object RadioGroup {
       Observer.empty[Option[String]]
     )
   }
-  case class Component(root: HtmlElement, checked: Source[Option[String]])
+  case class Component(root: HtmlElement, checked: Signal[Option[String]])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component): HtmlElement = c.root
@@ -180,20 +190,22 @@ object RadioGroup {
       if (h) "s-check-group s-check-group__horizontal"
       else "s-check-group"
     }
-    val unifiedSource = b.children.toObservable.flatMap { chil =>
-      Signal
-        .sequence(
-          chil.map(
-            _.checked.toObservable.toWeakSignal.map(_.filter(_._2).map(_._1))
+    val unifiedSource = b.children.toObservable.toWeakSignal.flatMap {
+      case None => Signal.fromValue(None)
+      case Some(chil) =>
+        Signal
+          .sequence(
+            chil.map(
+              _.checked.toObservable.toWeakSignal.map(_.filter(_._2).map(_._1))
+            )
           )
-        )
-        .map(_.flatten.headOption)
+          .map(_.flatten.headOption)
     }
     val root = fieldSet(
       cls <-- containerStyle,
       legend(cls := "s-label", L.child.text <-- b.label),
       L.children <-- b.children.toObservable.map(_.map(_.root)),
-      unifiedSource --> b.checked
+      unifiedSource.changes --> b.checked
     )
 
     Component(root, unifiedSource)

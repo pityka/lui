@@ -32,7 +32,7 @@ object Button {
       Signal.fromValue(false)
     )
   }
-  case class Component(root: HtmlElement, click: Source[Unit])
+  case class Component(root: HtmlElement, click: EventStream[Unit])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component): HtmlElement = c.root
@@ -110,12 +110,7 @@ object Button {
         }
 
     val disabled =
-      b.disabled.toObservable.toWeakSignal.map(_.getOrElse(false)).map {
-        _ match {
-          case true => """[aria-disabled="true"]"""
-          case _    => ""
-        }
-      }
+      b.disabled.toObservable.toWeakSignal.map(_.getOrElse(false))
     val selected =
       b.selected.toObservable.toWeakSignal.map(_.getOrElse(false)).map {
         _ match {
@@ -141,7 +136,6 @@ object Button {
       .combineSeq(
         List(
           btnSizeMod,
-          disabled,
           selected,
           dropdown,
           loading,
@@ -156,6 +150,7 @@ object Button {
     val root = button(
       typ := "button",
       cls <-- combinedMods,
+      aria.disabled <-- disabled,
       span(
         L.child.text <-- b.label
       ),

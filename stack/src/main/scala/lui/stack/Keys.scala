@@ -20,6 +20,7 @@ private[stack] trait KeyValues {
   val child = new InSyntax[child]
   val children = new InSyntax[children]
   val inValue = new InSyntax[inValue]
+  val inChecked = new InSyntax[inChecked]
   val name = new InSyntax[name]
   val theme = new InSyntax[theme]
   val title = new InSyntax[title]

@@ -32,7 +32,7 @@ object TextField {
       Signal.fromValue(false)
     )
   }
-  case class Component(root: HtmlElement, value: Source[String])
+  case class Component(root: HtmlElement, value: Signal[String])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component): HtmlElement = c.root
@@ -132,7 +132,14 @@ object TextField {
         L.child.text <-- b.validationMessage
       )
     )
-    Component(root, i.events(onInput).map(_ => i.ref.value))
+    Component(
+      root,
+      i.events(onInput)
+        .map(_ => i.ref.value)
+        .toObservable
+        .toWeakSignal
+        .map(_.getOrElse(i.ref.value))
+    )
   }
 
 }

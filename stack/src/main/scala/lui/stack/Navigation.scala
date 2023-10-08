@@ -45,7 +45,7 @@ object NavigationItem {
       Signal.fromValue(NavigationStyle.NavigationHorizontal)
     )
   }
-  case class Component[T](root: HtmlElement, clicks: Source[T], active: Sink[T])
+  case class Component[T](root: HtmlElement, clicks: EventStream[T], active: Sink[T])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component[_]): HtmlElement = c.root
@@ -109,7 +109,7 @@ object NavigationGroup {
       theme = Signal.fromValue(NavigationStyle.NavigationHorizontal)
     )
   }
-  case class Component[T](root: HtmlElement, value: Source[T])
+  case class Component[T](root: HtmlElement, value: EventStream[T])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component[_]): HtmlElement = c.root

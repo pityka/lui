@@ -5,6 +5,7 @@ private[stack] object KeyTypes {
   sealed trait disabled
   sealed trait value
   sealed trait inValue
+  sealed trait inChecked
   sealed trait name
   sealed trait loading
   sealed trait selected

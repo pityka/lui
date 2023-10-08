@@ -32,7 +32,7 @@ object Select {
       Signal.fromValue(false)
     )
   }
-  case class Component(root: HtmlElement, value: Source[Int])
+  case class Component(root: HtmlElement, value: EventStream[Int])
   object Component {
     import scala.language.implicitConversions
     implicit def conv(c: Component): HtmlElement = c.root

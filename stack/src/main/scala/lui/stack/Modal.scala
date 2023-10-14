@@ -2,46 +2,17 @@ package lui.stack
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
-import lui.{util, _}
+import lui.{_}
 import stack.{KeyTypes => K}
 
-object Modal {
-  def apply(mods: util.Mod[Modal.Param]*) =
-    Modal.fromParam(
-      util
-        .build(Modal.Param.empty)(mods: _*)
-    )
-  case class Param(
-      child: Source[HtmlElement],
-      title: Source[String],
-      activeIn: Source[Boolean],
-      activeOut: Sink[Boolean]
-  )
-  object Param {
-    def empty = Param(
-      Signal.fromValue(div()),
-      Signal.fromValue(""),
-      Signal.fromValue(false),
-      Observer.empty[Boolean]
-    )
-
-  }
-  case class Component(root: HtmlElement) extends Comp
-  
-  private type In[K, V] = Key[K, Param, Source[V]]
-  private type Out[K, V] = Key[K, Param, Sink[V]]
-
-  implicit val assignChild: In[K.child, HtmlElement] =
-    mk((b, v) => b.copy(child = v))
-  implicit val assignTitle: In[K.title, String] =
-    mk((b, v) => b.copy(title = v))
-  implicit val assignIn: In[K.active, Boolean] =
-    mk((b, v) => b.copy(activeIn = v))
-  implicit val assignOut: Out[K.value, Boolean] =
-    mk((b, v) => b.copy(activeOut = v))
-
-  def fromParam(b: Param) = {
-
+private[stack] case class ModalBuilder(
+    child: Source[HtmlElement],
+    title: Source[String],
+    activeIn: Source[Boolean],
+    activeOut: Sink[Boolean]
+) extends Builder[Modal] {
+  def build() = {
+    val b = this
     val state = Var(false)
 
     val effectiveState = state.signal.changes.mergeWith(
@@ -74,7 +45,32 @@ object Modal {
       )
     )
 
-    Component(root)
+    Modal(root)
   }
+
+}
+case class Modal(root: HtmlElement) extends Component
+
+object Modal extends Companion[Modal, ModalBuilder] {
+
+  object keys extends ChildKey with ChildrenKey with ActiveKey with ValueKey
+  type X = keys.type
+  val x = keys
+
+  def empty = ModalBuilder(
+    Signal.fromValue(div()),
+    Signal.fromValue(""),
+    Signal.fromValue(false),
+    Observer.empty[Boolean]
+  )
+
+  implicit val assignChild: In[K.child, HtmlElement] =
+    mk((b, v) => b.copy(child = v))
+  implicit val assignTitle: In[K.title, String] =
+    mk((b, v) => b.copy(title = v))
+  implicit val assignIn: In[K.active, Boolean] =
+    mk((b, v) => b.copy(activeIn = v))
+  implicit val assignOut: Out[K.value, Boolean] =
+    mk((b, v) => b.copy(activeOut = v))
 
 }

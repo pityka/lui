@@ -2,73 +2,21 @@ package lui.stack
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
-import lui.{util, _}
+import lui.{_}
 import stack.{KeyTypes => K}
 
-object RadioOption {
-  def apply(mods: util.Mod[RadioOption.Param]*) =
-    RadioOption.fromParam(
-      util.build(RadioOption.Param.empty)(mods: _*)
-    )
-  case class Param(
-      label: Source[String],
-      description: Source[String],
-      validationMessage: Source[String],
-      inValue: Source[String],
-      name: Source[String],
-      checked: Sink[Boolean],
-      validation: Source[Option[Validation]],
-      disabled: Source[Boolean]
-  )
-  object Param {
-    def empty = Param(
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Observer.empty[Boolean],
-      Signal.fromValue(None),
-      Signal.fromValue(false)
-    )
-  }
-  case class Component(root: HtmlElement, checked: Signal[(String, Boolean)]) extends Comp
-  
-  private type In[K, V] = Key[K, Param, Source[V]]
-  private type Out[K, V] = Key[K, Param, Sink[V]]
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-  implicit val assignValue: In[K.inValue, String] =
-    mk((b, v) => b.copy(inValue = v))
-  implicit val assignName: In[K.name, String] =
-    mk((b, v) => b.copy(name = v))
-
-  implicit val assignVariant: In[K.variant, Option[RadioOption.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-
-  implicit val assignOut: Out[K.checked, Boolean] =
-    mk((b, v) => b.copy(checked = v))
-
-  sealed trait Validation
-  private[RadioOption] object Validation {
-    case object Warning extends Validation
-    case object Error extends Validation
-    case object Success extends Validation
-  }
-  val Warning: Validation = Validation.Warning
-  val Error: Validation = Validation.Error
-  val Success: Validation = Validation.Success
-
-  def fromParam(b: Param) = {
-
+private[stack] case class RadioOptionBuilder(
+    label: Source[String],
+    description: Source[String],
+    validationMessage: Source[String],
+    inValue: Source[String],
+    name: Source[String],
+    checked: Sink[Boolean],
+    validation: Source[Option[RadioOption.Validation]],
+    disabled: Source[Boolean]
+) extends Builder[RadioOption] {
+  def build() = {
+    val b = this
     val containerStyle = Signal
       .combine(
         b.disabled.toObservable.toWeakSignal.map(_.getOrElse(false)),
@@ -80,10 +28,10 @@ object RadioOption {
           if (readonly) base + " is-readonly"
           else base
         validation match {
-          case None                     => v1
-          case Some(Validation.Success) => v1 + " has-success"
-          case Some(Validation.Warning) => v1 + " has-warning"
-          case Some(Validation.Error)   => v1 + " has-error"
+          case None                                 => v1
+          case Some(RadioOption.Validation.Success) => v1 + " has-success"
+          case Some(RadioOption.Validation.Warning) => v1 + " has-warning"
+          case Some(RadioOption.Validation.Error)   => v1 + " has-error"
         }
       }
 
@@ -113,7 +61,7 @@ object RadioOption {
         )
       )
     )
-    Component(
+    RadioOption(
       root,
       i.events(onInput)
         .map(_ => (i.ref.value, i.ref.checked))
@@ -125,61 +73,74 @@ object RadioOption {
         )
     )
   }
-
 }
+case class RadioOption(root: HtmlElement, checked: Signal[(String, Boolean)])
+    extends Comp
 
-object RadioGroup {
-  def apply(mods: util.Mod[RadioGroup.Param]*) =
-    RadioGroup.fromParam(
-      util.build(RadioGroup.Param.empty)(mods: _*)
-    )
-  case class Param(
-      label: Source[String],
-      horizontal: Source[Boolean],
-      children: Source[Seq[RadioOption.Component]],
-      checked: Sink[Option[String]]
+object RadioOption extends Companion[RadioOption, RadioOptionBuilder] {
+  object keys
+      extends LabelKey
+      with DescriptionKey
+      with MessageKey
+      with DisabledKey
+      with InValueKey
+      with NameKey
+      with VariantKey
+      with CheckedKey
+  type X = keys.type
+  val x = keys
+
+  def empty = RadioOptionBuilder(
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Observer.empty[Boolean],
+    Signal.fromValue(None),
+    Signal.fromValue(false)
   )
-  object Param {
-    def empty = Param(
-      Signal.fromValue(""),
-      Signal.fromValue(false),
-      Signal.fromValue(Nil),
-      Observer.empty[Option[String]]
-    )
-  }
-  case class Component(root: HtmlElement, checked: Signal[Option[String]]) extends Comp
-  
-  private type In[K, V] = Key[K, Param, Source[V]]
-  private type Out[K, V] = Key[K, Param, Sink[V]]
 
   implicit val assignLabel: In[K.label, String] =
     mk((b, v) => b.copy(label = v))
-  implicit val assignHorizontal: In[K.horizontal, Boolean] =
-    mk((b, v) => b.copy(horizontal = v))
-  implicit val assignChild: In[K.child, RadioOption.Component] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList }
-      )
-    )
-  implicit val assignChildren: In[K.children, Seq[RadioOption.Component]] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList.flatten }
-      )
-    )
+  implicit val assignDescription: In[K.description, String] =
+    mk((b, v) => b.copy(description = v))
+  implicit val assignMessage: In[K.message, String] =
+    mk((b, v) => b.copy(validationMessage = v))
 
-  implicit val assignOut: Out[K.checked, Option[String]] =
+  implicit val assignDisabled: In[K.disabled, Boolean] =
+    mk((b, v) => b.copy(disabled = v))
+  implicit val assignValue: In[K.inValue, String] =
+    mk((b, v) => b.copy(inValue = v))
+  implicit val assignName: In[K.name, String] =
+    mk((b, v) => b.copy(name = v))
+
+  implicit val assignVariant: In[K.variant, Option[RadioOption.Validation]] =
+    mk((b, v) => b.copy(validation = v))
+
+  implicit val assignOut: Out[K.checked, Boolean] =
     mk((b, v) => b.copy(checked = v))
 
-  def fromParam(b: Param) = {
+  sealed trait Validation
+  private[stack] object Validation {
+    case object Warning extends Validation
+    case object Error extends Validation
+    case object Success extends Validation
+  }
+  val Warning: Validation = Validation.Warning
+  val Error: Validation = Validation.Error
+  val Success: Validation = Validation.Success
 
+}
+
+private[stack] case class RadioGroupBuilder(
+    label: Source[String],
+    horizontal: Source[Boolean],
+    children: Source[Seq[RadioOption]],
+    checked: Sink[Option[String]]
+) extends Builder[RadioGroup] {
+  def build() = {
+    val b = this
     val containerStyle = b.horizontal.toObservable.map { h =>
       if (h) "s-check-group s-check-group__horizontal"
       else "s-check-group"
@@ -202,8 +163,54 @@ object RadioGroup {
       unifiedSource.changes --> b.checked
     )
 
-    Component(root, unifiedSource)
+    RadioGroup(root, unifiedSource)
 
   }
+}
+case class RadioGroup(root: HtmlElement, checked: Signal[Option[String]])
+    extends Comp
+object RadioGroup extends Companion[RadioGroup, RadioGroupBuilder] {
+
+  object keys
+      extends LabelKey
+      with HorizontalKey
+      with ChildKey
+      with ChildrenKey
+      with CheckedKey
+  type X = keys.type
+  val x = keys
+
+  def empty = RadioGroupBuilder(
+    Signal.fromValue(""),
+    Signal.fromValue(false),
+    Signal.fromValue(Nil),
+    Observer.empty[Option[String]]
+  )
+
+  implicit val assignLabel: In[K.label, String] =
+    mk((b, v) => b.copy(label = v))
+  implicit val assignHorizontal: In[K.horizontal, Boolean] =
+    mk((b, v) => b.copy(horizontal = v))
+  implicit val assignChild: In[K.child, RadioOption] =
+    mk((b, v) =>
+      b.copy(children =
+        b.children.toObservable.toWeakSignal
+          .map(_.getOrElse(Nil))
+          .combineWith(v.toObservable.toWeakSignal)
+          .map { case (a, b) => a ++ b.toList }
+      )
+    )
+  implicit val assignChildren: In[K.children, Seq[RadioOption]] =
+    mk((b, v) =>
+      b.copy(children =
+        b.children.toObservable.toWeakSignal
+          .map(_.getOrElse(Nil))
+          .combineWith(v.toObservable.toWeakSignal)
+          .map { case (a, b) => a ++ b.toList.flatten }
+      )
+    )
+
+  implicit val assignOut: Out[K.checked, Option[String]] =
+    mk((b, v) => b.copy(checked = v))
 
 }

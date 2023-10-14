@@ -28,34 +28,13 @@ object NavigationStyle {
   val NavigationMuted: NavigationStyle = NavigationStyleEnum.NavigationMuted
 }
 
-object NavigationItem {
-  def apply[T](key: T)(mods: util.Mod[NavigationItem.Param[T]]*) =
-    NavigationItem.fromParam(
-      util.build(NavigationItem.Param.empty(key))(mods: _*)
-    )
-  case class Param[T](
-      label: Source[String],
-      key: T,
-      theme: Source[NavigationStyle]
-  )
-  object Param {
-    def empty[T](t: T) = Param(
-      Signal.fromValue(""),
-      t,
-      Signal.fromValue(NavigationStyle.NavigationHorizontal)
-    )
-  }
-  case class Component[T](root: HtmlElement, clicks: EventStream[T], active: Sink[T]) extends Comp
-  
-  private type In[K, V, T] = Key[K, Param[T], Source[V]]
-
-  implicit def assignLabel[T]: In[K.label, String, T] =
-    mk((b, v) => b.copy(label = v))
-  implicit def assignTheme[T]: In[K.theme, NavigationStyle, T] =
-    mk((b, v) => b.copy(theme = v))
-
-  def fromParam[T](b: Param[T]) = {
-
+private[stack] case class NavigationItemBuilder[T](
+    label: Source[String],
+    key: T,
+    theme: Source[NavigationStyle]
+) extends Builder[NavigationItem[T]] {
+  def build(): NavigationItem[T] = {
+    val b = this
     val bus = eventbus.EventBus[T]()
     val i = button(
       typ := "button",
@@ -80,65 +59,47 @@ object NavigationItem {
     )
 
     val root = i
-    Component(
+    NavigationItem[T](
       root = root,
       clicks = i.events(onClick).mapTo(b.key),
       active = bus.writer
     )
   }
-
 }
 
-object NavigationGroup {
-  def apply[T](mods: util.Mod[NavigationGroup.Param[T]]*) =
-    NavigationGroup.fromParam(
-      util.build(NavigationGroup.Param.empty[T])(mods: _*)
-    )
-  case class Param[T](
-      children: Source[Seq[NavigationItem.Component[T]]],
-      value: Sink[T],
-      theme: Source[NavigationStyle]
+case class NavigationItem[T](
+    root: HtmlElement,
+    clicks: EventStream[T],
+    active: Sink[T]
+) extends Comp
+
+object NavigationItem {
+  object keys extends LabelKey with ThemeKey
+  def apply[T](key: T)(mods: keys.type => util.Mod[NavigationItemBuilder[T]]*) =
+    util.build(empty(key))(mods.map(_(keys)): _*).build()
+
+  def empty[T](t: T) = NavigationItemBuilder(
+    Signal.fromValue(""),
+    t,
+    Signal.fromValue(NavigationStyle.NavigationHorizontal)
   )
-  object Param {
-    def empty[T] = Param[T](
-      children = Signal.fromValue(Nil),
-      value = Observer.empty[T],
-      theme = Signal.fromValue(NavigationStyle.NavigationHorizontal)
-    )
-  }
-  case class Component[T](root: HtmlElement, value: EventStream[T]) extends Comp
-  
-  private type In[K, V, T] = Key[K, Param[T], Source[V]]
-  private type Out[K, V, T] = Key[K, Param[T], Sink[V]]
 
-  implicit def assignChild[T]: In[K.child, NavigationItem.Component[T], T] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList }
-      )
-    )
-  implicit def assignChildren[T]
-      : In[K.children, Seq[NavigationItem.Component[T]], T] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList.flatten }
-      )
-    )
+  private type In[K, V, T] = Key[K, NavigationItemBuilder[T], Source[V]]
 
-  implicit def assignOut[T]: Out[K.checked, T, T] =
-    mk((b, v) => b.copy(value = v))
-
+  implicit def assignLabel[T]: In[K.label, String, T] =
+    mk((b, v) => b.copy(label = v))
   implicit def assignTheme[T]: In[K.theme, NavigationStyle, T] =
     mk((b, v) => b.copy(theme = v))
 
-  def fromParam[T](b: Param[T]) = {
+}
 
+ case class NavigationGroupBuilder[T](
+    children: Source[Seq[NavigationItem[T]]],
+    value: Sink[T],
+    theme: Source[NavigationStyle]
+) extends Builder[NavigationGroup[T]] {
+  def build() = {
+    val b = this
     val containerStyle = b.theme.toObservable.map { h =>
       h match {
         case NavigationVertical   => "s-navigation s-navigation__vertical"
@@ -175,8 +136,60 @@ object NavigationGroup {
       (lastClick --> observer).bind(root)
     }
 
-    Component(root, lastClick)
+    new NavigationGroup(root, lastClick)
 
   }
+}
+ class NavigationGroup[T](val root: HtmlElement,val value: EventStream[T])
+    extends Comp
+
+object NavigationGroup {
+  object keysObject
+      extends LabelKey
+      with ThemeKey
+      with ChildKey
+      with ChildrenKey
+      with CheckedKey
+    val keys = keysObject
+  def apply[T](mods: keysObject.type => util.Mod[NavigationGroupBuilder[T]]*) =
+    util.build(NavigationGroupBuilder.empty[T])(mods.map(_(keys)): _*).build()
+}
+
+object NavigationGroupBuilder {
+  
+
+  def empty[T] : NavigationGroupBuilder[T] = NavigationGroupBuilder[T](
+    children = Signal.fromValue(Nil),
+    value = Observer.empty[T],
+    theme = Signal.fromValue(NavigationStyle.NavigationHorizontal)
+  )
+
+  private type In[K, V, T] = Key[K, NavigationGroupBuilder[T], Source[V]]
+  private type Out[K, V, T] = Key[K, NavigationGroupBuilder[T], Sink[V]]
+
+  implicit def assignChild[T]: In[K.child, NavigationItem[T], T] =
+    mk((b, v) =>
+      b.copy(children =
+        b.children.toObservable.toWeakSignal
+          .map(_.getOrElse(Nil))
+          .combineWith(v.toObservable.toWeakSignal)
+          .map { case (a, b) => a ++ b.toList }
+      )
+    )
+  implicit def assignChildren[T]: In[K.children, Seq[NavigationItem[T]], T] =
+    mk((b, v) =>
+      b.copy(children =
+        b.children.toObservable.toWeakSignal
+          .map(_.getOrElse(Nil))
+          .combineWith(v.toObservable.toWeakSignal)
+          .map { case (a, b) => a ++ b.toList.flatten }
+      )
+    )
+
+  implicit def assignOut[T]: Out[K.checked, T, T] =
+    mk((b, v) => b.copy(value = v))
+
+  implicit def assignTheme[T]: In[K.theme, NavigationStyle, T] =
+    mk((b, v) => b.copy(theme = v))
 
 }

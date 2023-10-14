@@ -2,86 +2,23 @@ package lui.stack
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
-import lui.{util, _}
+import lui.{_}
 import stack.{KeyTypes => K}
 
-object TextField {
-  def apply(mods: util.Mod[TextField.Param]*) =
-    TextField.fromParam(
-      util.build(TextField.Param.empty)(mods: _*)
-    )
-  case class Param(
-      label: Source[String],
-      description: Source[String],
-      placeholder: Source[String],
-      validationMessage: Source[String],
-      value: Sink[String],
-      size: Source[Size],
-      validation: Source[Option[Validation]],
-      disabled: Source[Boolean]
-  )
-  object Param {
-    def empty = Param(
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Observer.empty[String],
-      Signal.fromValue(TextField.Medium),
-      Signal.fromValue(None),
-      Signal.fromValue(false)
-    )
-  }
-  case class Component(root: HtmlElement, value: Signal[String])
-      extends Comp
-
-  private type In[K, V] = Key[K, Param, Source[V]]
-  private type Out[K, V] = Key[K, Param, Sink[V]]
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignPlaceholder: In[K.placeholder, String] =
-    mk((b, v) => b.copy(placeholder = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-
-  implicit val assignVariant: In[K.variant, Option[TextField.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-  implicit val assignSize: In[K.size, TextField.Size] =
-    mk((b, v) => b.copy(size = v))
-
-  implicit val assignOut: Out[K.value, String] =
-    mk((b, v) => b.copy(value = v))
-
-  sealed trait Validation
-  private[TextField] object Validation {
-    case object Warning extends Validation
-    case object Error extends Validation
-    case object Success extends Validation
-  }
-  val Warning: Validation = Validation.Warning
-  val Error: Validation = Validation.Error
-  val Success: Validation = Validation.Success
-
-  sealed trait Size
-  private[TextField] object Size {
-    case object Small extends Size
-    case object Medium extends Size
-    case object Large extends Size
-    case object ExtraLarge extends Size
-  }
-  val Small: Size = Size.Small
-  val Medium: Size = Size.Medium
-  val Large: Size = Size.Large
-  val ExtraLarge: Size = Size.ExtraLarge
-
-  def fromParam(b: Param) = {
-
+private[stack] case class TextFieldBuilder(
+    label: Source[String],
+    description: Source[String],
+    placeholder: Source[String],
+    validationMessage: Source[String],
+    value: Sink[String],
+    size: Source[TextField.Size],
+    validation: Source[Option[TextField.Validation]],
+    disabled: Source[Boolean]
+) extends Builder[TextField] {
+  def build(): TextField = {
+    val b = this
+    import TextField.Validation
+    import TextField.Size
     val containerStyle = Signal
       .combine(
         b.disabled.toObservable.toWeakSignal.map(_.getOrElse(false)),
@@ -130,7 +67,7 @@ object TextField {
         L.child.text <-- b.validationMessage
       )
     )
-    Component(
+    TextField(
       root,
       i.events(onInput)
         .map(_ => i.ref.value)
@@ -139,5 +76,71 @@ object TextField {
         .map(_.getOrElse(i.ref.value))
     )
   }
+}
+case class TextField(root: HtmlElement, value: Signal[String]) extends Comp
+object TextField extends Companion[TextField, TextFieldBuilder] {
+  object keys
+      extends LabelKey
+      with DescriptionKey
+      with PlaceholderKey
+      with MessageKey
+      with DisabledKey
+      with VariantKey
+      with SizeKey
+      with ValueKey
+  type X = keys.type
+  val x = keys
+  def empty = TextFieldBuilder(
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Observer.empty[String],
+    Signal.fromValue(TextField.Medium),
+    Signal.fromValue(None),
+    Signal.fromValue(false)
+  )
+
+  implicit val assignLabel: In[K.label, String] =
+    mk((b, v) => b.copy(label = v))
+  implicit val assignDescription: In[K.description, String] =
+    mk((b, v) => b.copy(description = v))
+  implicit val assignPlaceholder: In[K.placeholder, String] =
+    mk((b, v) => b.copy(placeholder = v))
+  implicit val assignMessage: In[K.message, String] =
+    mk((b, v) => b.copy(validationMessage = v))
+
+  implicit val assignDisabled: In[K.disabled, Boolean] =
+    mk((b, v) => b.copy(disabled = v))
+
+  implicit val assignVariant: In[K.variant, Option[TextField.Validation]] =
+    mk((b, v) => b.copy(validation = v))
+  implicit val assignSize: In[K.size, TextField.Size] =
+    mk((b, v) => b.copy(size = v))
+
+  implicit val assignOut: Out[K.value, String] =
+    mk((b, v) => b.copy(value = v))
+
+  sealed trait Validation
+  private[stack] object Validation {
+    case object Warning extends Validation
+    case object Error extends Validation
+    case object Success extends Validation
+  }
+  val Warning: Validation = Validation.Warning
+  val Error: Validation = Validation.Error
+  val Success: Validation = Validation.Success
+
+  sealed trait Size
+  private[stack] object Size {
+    case object Small extends Size
+    case object Medium extends Size
+    case object Large extends Size
+    case object ExtraLarge extends Size
+  }
+  val Small: Size = Size.Small
+  val Medium: Size = Size.Medium
+  val Large: Size = Size.Large
+  val ExtraLarge: Size = Size.ExtraLarge
 
 }

@@ -2,85 +2,22 @@ package lui.stack
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
-import lui.{util, _}
+import lui.{_}
 import stack.{KeyTypes => K}
-
-object Select {
-  def apply(mods: util.Mod[Select.Param]*) =
-    Select.fromParam(
-      util.build(Select.Param.empty)(mods: _*)
-    )
-  case class Param(
-      label: Source[String],
-      description: Source[String],
-      validationMessage: Source[String],
-      options: Source[Seq[String]],
-      value: Sink[Int],
-      size: Source[Size],
-      validation: Source[Option[Validation]],
-      disabled: Source[Boolean]
-  )
-  object Param {
-    def empty = Param(
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Signal.fromValue(""),
-      Signal.fromValue(Nil),
-      Observer.empty[Int],
-      Signal.fromValue(Select.Medium),
-      Signal.fromValue(None),
-      Signal.fromValue(false)
-    )
-  }
-  case class Component(root: HtmlElement, value: EventStream[Int]) extends Comp
-  
-  private type In[K, V] = Key[K, Param, Source[V]]
-  private type Out[K, V] = Key[K, Param, Sink[V]]
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-
-  implicit val assignVariant: In[K.variant, Option[Select.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-  implicit val assignSize: In[K.size, Select.Size] =
-    mk((b, v) => b.copy(size = v))
-  implicit val assignOptions: In[K.options, Seq[String]] =
-    mk((b, v) => b.copy(options = v))
-
-  implicit val assignOut: Out[K.value, Int] =
-    mk((b, v) => b.copy(value = v))
-
-  sealed trait Validation
-  private[Select] object Validation {
-    case object Warning extends Validation
-    case object Error extends Validation
-    case object Success extends Validation
-  }
-  val Warning: Validation = Validation.Warning
-  val Error: Validation = Validation.Error
-  val Success: Validation = Validation.Success
-
-  sealed trait Size
-  private[Select] object Size {
-    case object Small extends Size
-    case object Medium extends Size
-    case object Large extends Size
-    case object ExtraLarge extends Size
-  }
-  val Small: Size = Size.Small
-  val Medium: Size = Size.Medium
-  val Large: Size = Size.Large
-  val ExtraLarge: Size = Size.ExtraLarge
-
-  def fromParam(b: Param) = {
-
+private[stack] case class SelectBuilder(
+    label: Source[String],
+    description: Source[String],
+    validationMessage: Source[String],
+    options: Source[Seq[String]],
+    value: Sink[Int],
+    size: Source[Select.Size],
+    validation: Source[Option[Select.Validation]],
+    disabled: Source[Boolean]
+) extends Builder[Select] {
+  def build() = {
+    val b = this
+    import Select.Validation
+    import Select.Size
     val containerStyle = Signal
       .combine(
         b.disabled.toObservable.toWeakSignal.map(_.getOrElse(false)),
@@ -134,7 +71,77 @@ object Select {
         L.child.text <-- b.validationMessage
       )
     )
-    Component(root, i.events(onInput).map(_ => i.ref.value.toInt))
+    Select(root, i.events(onInput).map(_ => i.ref.value.toInt))
   }
+
+}
+
+case class Select(root: HtmlElement, value: EventStream[Int]) extends Comp
+
+object Select extends Companion[Select, SelectBuilder] {
+  object keys
+      extends LabelKey
+      with DescriptionKey
+      with MessageKey
+      with DisabledKey
+      with VariantKey
+      with SizeKey
+      with OptionsKey
+      with ValueKey
+  type X = keys.type
+  val x = keys
+
+  def empty = SelectBuilder(
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Signal.fromValue(""),
+    Signal.fromValue(Nil),
+    Observer.empty[Int],
+    Signal.fromValue(Select.Medium),
+    Signal.fromValue(None),
+    Signal.fromValue(false)
+  )
+
+  implicit val assignLabel: In[K.label, String] =
+    mk((b, v) => b.copy(label = v))
+  implicit val assignDescription: In[K.description, String] =
+    mk((b, v) => b.copy(description = v))
+  implicit val assignMessage: In[K.message, String] =
+    mk((b, v) => b.copy(validationMessage = v))
+
+  implicit val assignDisabled: In[K.disabled, Boolean] =
+    mk((b, v) => b.copy(disabled = v))
+
+  implicit val assignVariant: In[K.variant, Option[Select.Validation]] =
+    mk((b, v) => b.copy(validation = v))
+  implicit val assignSize: In[K.size, Select.Size] =
+    mk((b, v) => b.copy(size = v))
+  implicit val assignOptions: In[K.options, Seq[String]] =
+    mk((b, v) => b.copy(options = v))
+
+  implicit val assignOut: Out[K.value, Int] =
+    mk((b, v) => b.copy(value = v))
+
+  sealed trait Validation
+  private[stack] object Validation {
+    case object Warning extends Validation
+    case object Error extends Validation
+    case object Success extends Validation
+  }
+  val Warning: Validation = Validation.Warning
+  val Error: Validation = Validation.Error
+  val Success: Validation = Validation.Success
+
+  sealed trait Size
+  private[stack] object Size {
+    case object Small extends Size
+    case object Medium extends Size
+    case object Large extends Size
+    case object ExtraLarge extends Size
+  }
+  val Small: Size = Size.Small
+  val Medium: Size = Size.Medium
+  val Large: Size = Size.Large
+  val ExtraLarge: Size = Size.ExtraLarge
 
 }

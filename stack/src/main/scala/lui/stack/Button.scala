@@ -2,88 +2,22 @@ package lui.stack
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
-import lui.{util, _}
+import lui._
 import stack.{KeyTypes => K}
 
-object Button {
-  def apply(mods: util.Mod[Button.Param]*) =
-    Button.fromParam(
-      util.build(Button.Param.empty)(mods: _*)
-    )
-  case class Param(
-      label: Source[String],
-      value: Sink[Unit],
-      size: Source[Size],
-      variant: Source[Variant],
-      selected: Source[Boolean],
-      loading: Source[Boolean],
-      dropdown: Source[Boolean],
-      disabled: Source[Boolean]
-  )
-  object Param {
-    def empty = Param(
-      Signal.fromValue(""),
-      Observer.empty[Unit],
-      Signal.fromValue(Button.Medium),
-      Signal.fromValue(Button.SecondaryClear),
-      Signal.fromValue(false),
-      Signal.fromValue(false),
-      Signal.fromValue(false),
-      Signal.fromValue(false)
-    )
-  }
-  case class Component(root: HtmlElement, click: EventStream[Unit]) extends Comp
-  
-  private type In[K, V] = Key[K, Param, Source[V]]
-  private type Out[K, V] = Key[K, Param, Sink[V]]
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-  implicit val assignLoading: In[K.loading, Boolean] =
-    mk((b, v) => b.copy(loading = v))
-  implicit val assignDropdown: In[K.dropdown, Boolean] =
-    mk((b, v) => b.copy(dropdown = v))
-  implicit val assignSelected: In[K.selected, Boolean] =
-    mk((b, v) => b.copy(selected = v))
-  implicit val assignVariant: In[K.variant, Button.Variant] =
-    mk((b, v) => b.copy(variant = v))
-  implicit val assignSize: In[K.size, Button.Size] =
-    mk((b, v) => b.copy(size = v))
-
-  implicit val assignOut: Out[K.value, Unit] =
-    mk((b, v) => b.copy(value = v))
-
-  sealed trait Variant
-  private[Button] object Variant {
-    case object Primary extends Variant
-    case object SecondaryClear extends Variant
-    case object SecondaryOutlined extends Variant
-    case object SecondaryFilled extends Variant
-    case object Muted extends Variant
-    case object Danger extends Variant
-  }
-  val Primary: Variant = Variant.Primary
-  val SecondaryClear: Variant = Variant.SecondaryClear
-  val SecondaryOutlined: Variant = Variant.SecondaryOutlined
-  val SecondaryFilled: Variant = Variant.SecondaryFilled
-  val Muted: Variant = Variant.Muted
-  val Danger: Variant = Variant.Danger
-
-  sealed trait Size
-  private[Button] object Size {
-    case object Small extends Size
-    case object Medium extends Size
-    case object Large extends Size
-  }
-  val Small: Size = Size.Small
-  val Medium: Size = Size.Medium
-  val Large: Size = Size.Large
-
-  def fromParam(b: Param) = {
-
+private[stack] case class ButtonBuilder(
+    label: Source[String],
+    value: Sink[Unit],
+    size: Source[Button.Size],
+    variant: Source[Button.Variant],
+    selected: Source[Boolean],
+    loading: Source[Boolean],
+    dropdown: Source[Boolean],
+    disabled: Source[Boolean]
+) extends  Builder[Button] {
+  def build() = {
+    val b = this
+    import Button._
     val btnSizeMod =
       b.size.toObservable.toWeakSignal.map(_.getOrElse(Medium)).map {
         _ match {
@@ -153,7 +87,81 @@ object Button {
       ),
       onClick.mapToUnit --> b.value
     )
-    Component(root, root.events(onClick).mapToUnit)
+    Button(root, root.events(onClick).mapToUnit)
   }
+}
+
+case class Button(root: HtmlElement, click: EventStream[Unit]) extends Component
+
+object Button extends Companion[Button, ButtonBuilder] {
+
+  object keys {
+      val dropdown = new InSyntax[K.dropdown]
+    val loading = new InSyntax[K.loading]
+    val disabled = new InSyntax[K.disabled]
+    val label = new InSyntax[K.label]
+    val selected = new InSyntax[K.selected]
+    val variant = new InSyntax[K.variant]
+    val size = new InSyntax[K.size]
+    val value = new OutSyntax[K.value]
+  }
+  type X = keys.type 
+  val x = keys
+
+  def empty = ButtonBuilder(
+    Signal.fromValue(""),
+    Observer.empty[Unit],
+    Signal.fromValue(Button.Medium),
+    Signal.fromValue(Button.SecondaryClear),
+    Signal.fromValue(false),
+    Signal.fromValue(false),
+    Signal.fromValue(false),
+    Signal.fromValue(false)
+  )
+
+  implicit val assignLabel: In[K.label, String] =
+    mk((b, v) => b.copy(label = v))
+
+  implicit val assignDisabled: In[K.disabled, Boolean] =
+    mk((b, v) => b.copy(disabled = v))
+  implicit val assignLoading: In[K.loading, Boolean] =
+    mk((b, v) => b.copy(loading = v))
+  implicit val assignDropdown: In[K.dropdown, Boolean] =
+    mk((b, v) => b.copy(dropdown = v))
+  implicit val assignSelected: In[K.selected, Boolean] =
+    mk((b, v) => b.copy(selected = v))
+  implicit val assignVariant: In[K.variant, Button.Variant] =
+    mk((b, v) => b.copy(variant = v))
+  implicit val assignSize: In[K.size, Button.Size] =
+    mk((b, v) => b.copy(size = v))
+
+  implicit val assignOut: Out[K.value, Unit] =
+    mk((b, v) => b.copy(value = v))
+
+  sealed trait Variant
+  private[stack] object Variant {
+    case object Primary extends Variant
+    case object SecondaryClear extends Variant
+    case object SecondaryOutlined extends Variant
+    case object SecondaryFilled extends Variant
+    case object Muted extends Variant
+    case object Danger extends Variant
+  }
+  val Primary: Variant = Variant.Primary
+  val SecondaryClear: Variant = Variant.SecondaryClear
+  val SecondaryOutlined: Variant = Variant.SecondaryOutlined
+  val SecondaryFilled: Variant = Variant.SecondaryFilled
+  val Muted: Variant = Variant.Muted
+  val Danger: Variant = Variant.Danger
+
+  sealed trait Size
+  private[stack] object Size {
+    case object Small extends Size
+    case object Medium extends Size
+    case object Large extends Size
+  }
+  val Small: Size = Size.Small
+  val Medium: Size = Size.Medium
+  val Large: Size = Size.Large
 
 }

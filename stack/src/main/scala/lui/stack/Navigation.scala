@@ -93,7 +93,7 @@ object NavigationItem {
 
 }
 
- case class NavigationGroupBuilder[T](
+case class NavigationGroupBuilder[T](
     children: Source[Seq[NavigationItem[T]]],
     value: Sink[T],
     theme: Source[NavigationStyle]
@@ -140,7 +140,7 @@ object NavigationItem {
 
   }
 }
- class NavigationGroup[T](val root: HtmlElement,val value: EventStream[T])
+class NavigationGroup[T](val root: HtmlElement, val value: EventStream[T])
     extends Comp
 
 object NavigationGroup {
@@ -150,15 +150,14 @@ object NavigationGroup {
       with ChildKey
       with ChildrenKey
       with CheckedKey
-    val keys = keysObject
+  val keys = keysObject
   def apply[T](mods: keysObject.type => util.Mod[NavigationGroupBuilder[T]]*) =
     util.build(NavigationGroupBuilder.empty[T])(mods.map(_(keys)): _*).build()
 }
 
 object NavigationGroupBuilder {
-  
 
-  def empty[T] : NavigationGroupBuilder[T] = NavigationGroupBuilder[T](
+  def empty[T]: NavigationGroupBuilder[T] = NavigationGroupBuilder[T](
     children = Signal.fromValue(Nil),
     value = Observer.empty[T],
     theme = Signal.fromValue(NavigationStyle.NavigationHorizontal)

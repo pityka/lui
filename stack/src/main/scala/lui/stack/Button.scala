@@ -14,7 +14,7 @@ private[stack] case class ButtonBuilder(
     loading: Source[Boolean],
     dropdown: Source[Boolean],
     disabled: Source[Boolean]
-) extends  Builder[Button] {
+) extends Builder[Button] {
   def build() = {
     val b = this
     import Button._
@@ -96,7 +96,7 @@ case class Button(root: HtmlElement, click: EventStream[Unit]) extends Component
 object Button extends Companion[Button, ButtonBuilder] {
 
   object keys {
-      val dropdown = new InSyntax[K.dropdown]
+    val dropdown = new InSyntax[K.dropdown]
     val loading = new InSyntax[K.loading]
     val disabled = new InSyntax[K.disabled]
     val label = new InSyntax[K.label]
@@ -105,7 +105,7 @@ object Button extends Companion[Button, ButtonBuilder] {
     val size = new InSyntax[K.size]
     val value = new OutSyntax[K.value]
   }
-  type X = keys.type 
+  type X = keys.type
   val x = keys
 
   def empty = ButtonBuilder(

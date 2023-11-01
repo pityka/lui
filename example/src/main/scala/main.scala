@@ -14,6 +14,10 @@ object Demo {
     .TextField(
       _.label := "Last Name"
     )
+  val files = st
+    .FileSelector(
+      _.label := "Last Name"
+    )
   val zipCodeValidState = Var(Option.empty[String])
   val zipCodeValidator = zipCodeValidState.writer.contramap[String](s =>
     if (s.forall(_.isDigit)) None else Some("needs integer")
@@ -136,7 +140,8 @@ object Demo {
               cls := "d-flex md:fd-column gx16 flex__fl-equal",
               firstName,
               lastName,
-              zipCode
+              zipCode,
+              files
             ),
             div(
               cls := "d-flex fd-column gx32",
@@ -151,7 +156,7 @@ object Demo {
             ),
             p(
               cls := "fc-black-400",
-              "By submitting this form you agree to eat bananas. At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga."
+              "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga."
             )
           ),
           div(

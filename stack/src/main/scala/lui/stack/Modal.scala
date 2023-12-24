@@ -3,7 +3,6 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui.{_}
-import stack.{KeyTypes => K}
 
 private[stack] case class ModalBuilder(
     child: Source[HtmlElement],
@@ -45,15 +44,29 @@ private[stack] case class ModalBuilder(
       )
     )
 
-    Modal(root)
+    new Modal(root)
   }
 
 }
-case class Modal(root: HtmlElement) extends Component
+class Modal private[stack] (val root: HtmlElement) extends Component
 
 object Modal extends Companion[Modal, ModalBuilder] {
 
-  object keys extends ChildKey with ChildrenKey with ActiveKey with ValueKey
+  protected object keys extends ChildKey with ActiveInOutKey with TitleKey {
+    protected type Builder = ModalBuilder
+    protected type ChildValue = HtmlElement
+
+    protected val activeKeyIn =
+      mkIn((b, v) => b.copy(activeIn = v))
+    protected val titleKey =
+      mkIn((b, v) => b.copy(title = v))
+    protected val childKey =
+      mkIn((b, v) => b.copy(child = v))
+
+    protected val activeKeyOut =
+      mkOut((b, v) => b.copy(activeOut = v))
+
+  }
   type X = keys.type
   val x = keys
 
@@ -63,14 +76,5 @@ object Modal extends Companion[Modal, ModalBuilder] {
     Signal.fromValue(false),
     Observer.empty[Boolean]
   )
-
-  implicit val assignChild: In[K.child, HtmlElement] =
-    mk((b, v) => b.copy(child = v))
-  implicit val assignTitle: In[K.title, String] =
-    mk((b, v) => b.copy(title = v))
-  implicit val assignIn: In[K.active, Boolean] =
-    mk((b, v) => b.copy(activeIn = v))
-  implicit val assignOut: Out[K.value, Boolean] =
-    mk((b, v) => b.copy(activeOut = v))
 
 }

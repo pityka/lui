@@ -3,7 +3,6 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui.{_}
-import stack.{KeyTypes => K}
 
 private[stack] case class TextAreaBuilder(
     label: Source[String],
@@ -11,6 +10,7 @@ private[stack] case class TextAreaBuilder(
     placeholder: Source[String],
     validationMessage: Source[String],
     value: Sink[String],
+    valueIn: Source[String],
     size: Source[TextArea.Size],
     validation: Source[Option[TextArea.Validation]],
     disabled: Source[Boolean]
@@ -66,7 +66,7 @@ private[stack] case class TextAreaBuilder(
         L.child.text <-- b.validationMessage
       )
     )
-    TextArea(
+    new TextArea(
       root,
       i.events(onInput)
         .map(_ => i.ref.value)
@@ -77,10 +77,10 @@ private[stack] case class TextAreaBuilder(
   }
 }
 
-case class TextArea(root: HtmlElement, value: Signal[String]) extends Comp
+class TextArea(val root: HtmlElement, val value: Signal[String]) extends Comp
 
 object TextArea extends Companion[TextArea, TextAreaBuilder] {
-  object keys
+  protected object keys
       extends LabelKey
       with DisabledKey
       with PlaceholderKey
@@ -88,7 +88,34 @@ object TextArea extends Companion[TextArea, TextAreaBuilder] {
       with DescriptionKey
       with VariantKey
       with SizeKey
-      with ValueKey
+      with ValueInOutKey {
+    protected type SizeValue = TextArea.Size
+    protected type VariantValue = Option[TextArea.Validation]
+    protected type Builder = TextAreaBuilder
+
+    protected val labelKey =
+      mkIn((b, v) => b.copy(label = v))
+    protected val descriptionKey =
+      mkIn((b, v) => b.copy(description = v))
+    protected val placeholderKey =
+      mkIn((b, v) => b.copy(placeholder = v))
+    protected val messageKey =
+      mkIn((b, v) => b.copy(validationMessage = v))
+
+    protected val disabledKey =
+      mkIn((b, v) => b.copy(disabled = v))
+
+    protected val variantKey =
+      mkIn((b, v) => b.copy(validation = v))
+    protected val sizeKey =
+      mkIn((b, v) => b.copy(size = v))
+
+    protected type ValueType = String
+    protected val valueKeyOut =
+      mkOut((b, v) => b.copy(value = v))
+    protected val valueKeyIn =
+      mkIn((b, v) => b.copy(valueIn = v))
+  }
   val x = keys
   type X = keys.type
 
@@ -98,30 +125,11 @@ object TextArea extends Companion[TextArea, TextAreaBuilder] {
     Signal.fromValue(""),
     Signal.fromValue(""),
     Observer.empty[String],
+    Signal.fromValue(""),
     Signal.fromValue(TextArea.Medium),
     Signal.fromValue(None),
     Signal.fromValue(false)
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignPlaceholder: In[K.placeholder, String] =
-    mk((b, v) => b.copy(placeholder = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-
-  implicit val assignVariant: In[K.variant, Option[TextArea.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-  implicit val assignSize: In[K.size, TextArea.Size] =
-    mk((b, v) => b.copy(size = v))
-
-  implicit val assignOut: Out[K.value, String] =
-    mk((b, v) => b.copy(value = v))
 
   sealed trait Validation
   private[stack] object Validation {

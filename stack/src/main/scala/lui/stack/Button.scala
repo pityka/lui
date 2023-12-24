@@ -87,23 +87,48 @@ private[stack] case class ButtonBuilder(
       ),
       onClick.mapToUnit --> b.value
     )
-    Button(root, root.events(onClick).mapToUnit)
+    new Button(root, root.events(onClick).mapToUnit)
   }
 }
 
-case class Button(root: HtmlElement, click: EventStream[Unit]) extends Component
+class Button private[stack] (
+    val root: HtmlElement,
+    val click: EventStream[Unit]
+) extends Component
 
 object Button extends Companion[Button, ButtonBuilder] {
+  private val assignLabel: In[K.label, String] =
+    mkIn((b, v) => b.copy(label = v))
 
-  object keys {
-    val dropdown = new InSyntax[K.dropdown]
-    val loading = new InSyntax[K.loading]
-    val disabled = new InSyntax[K.disabled]
-    val label = new InSyntax[K.label]
-    val selected = new InSyntax[K.selected]
-    val variant = new InSyntax[K.variant]
-    val size = new InSyntax[K.size]
-    val value = new OutSyntax[K.value]
+  private val assignDisabled: In[K.disabled, Boolean] =
+    mkIn((b, v) => b.copy(disabled = v))
+  private val assignLoading: In[K.loading, Boolean] =
+    mkIn((b, v) => b.copy(loading = v))
+  private val assignDropdown: In[K.dropdown, Boolean] =
+    mkIn((b, v) => b.copy(dropdown = v))
+  private val assignSelected: In[K.selected, Boolean] =
+    mkIn((b, v) => b.copy(selected = v))
+  private val assignVariant: In[K.variant, Button.Variant] =
+    mkIn((b, v) => b.copy(variant = v))
+  private val assignSize: In[K.size, Button.Size] =
+    mkIn((b, v) => b.copy(size = v))
+
+  private val assignOut: Out[K.value, Unit] =
+    mkOut((b, v) => b.copy(value = v))
+
+  protected object keys {
+    val dropdown =
+      new InSyntax[K.dropdown, ButtonBuilder, Boolean](assignDropdown)
+    val loading = new InSyntax[K.loading, ButtonBuilder, Boolean](assignLoading)
+    val disabled =
+      new InSyntax[K.disabled, ButtonBuilder, Boolean](assignDisabled)
+    val label = new InSyntax[K.label, ButtonBuilder, String](assignLabel)
+    val selected =
+      new InSyntax[K.selected, ButtonBuilder, Boolean](assignSelected)
+    val variant =
+      new InSyntax[K.variant, ButtonBuilder, Button.Variant](assignVariant)
+    val size = new InSyntax[K.size, ButtonBuilder, Button.Size](assignSize)
+    val value = new OutSyntax[K.value, ButtonBuilder, Unit](assignOut)
   }
   type X = keys.type
   val x = keys
@@ -118,25 +143,6 @@ object Button extends Companion[Button, ButtonBuilder] {
     Signal.fromValue(false),
     Signal.fromValue(false)
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-  implicit val assignLoading: In[K.loading, Boolean] =
-    mk((b, v) => b.copy(loading = v))
-  implicit val assignDropdown: In[K.dropdown, Boolean] =
-    mk((b, v) => b.copy(dropdown = v))
-  implicit val assignSelected: In[K.selected, Boolean] =
-    mk((b, v) => b.copy(selected = v))
-  implicit val assignVariant: In[K.variant, Button.Variant] =
-    mk((b, v) => b.copy(variant = v))
-  implicit val assignSize: In[K.size, Button.Size] =
-    mk((b, v) => b.copy(size = v))
-
-  implicit val assignOut: Out[K.value, Unit] =
-    mk((b, v) => b.copy(value = v))
 
   sealed trait Variant
   private[stack] object Variant {

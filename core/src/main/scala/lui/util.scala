@@ -10,6 +10,13 @@ private[lui] object util {
   def mk[T, B, V](f: (B,V) => B) = new Key[T, B, V] {
     def apply(v: V): B => B = (b) => f(b, v)
   }
+  def mkIn[T, B, V](f: (B,Source[V]) => B) = new InKey[T, B, V] {
+    def apply(v: Source[V]): B => B = (b) => f(b, v)
+  }
+  def mkOut[T, B, V](f: (B,Sink[V]) => B) = new OutKey[T, B, V] {
+    def apply(v: Sink[V]): B => B = (b) => f(b, v)
+  }
+  
 
 
   def build[B](init: B)(mods: Mod[B]*): B = mods.foldLeft(

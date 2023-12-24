@@ -3,7 +3,6 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui.{_}
-import stack.{KeyTypes => K}
 import org.scalajs.dom
 
 private[stack] case class FileSelectorBuilder(
@@ -11,6 +10,7 @@ private[stack] case class FileSelectorBuilder(
     description: Source[String],
     validationMessage: Source[String],
     value: Sink[List[dom.File]],
+    valueIn: Source[List[dom.File]],
     validation: Source[Option[FileSelector.Validation]],
     disabled: Source[Boolean]
 ) extends Builder[FileSelector] {
@@ -37,7 +37,7 @@ private[stack] case class FileSelectorBuilder(
 
     val i = input(
       typ := "file",
-      cls :="flex--item",
+      cls := "flex--item",
       padding := "5px",
       onInput.mapToFiles --> b.value
     )
@@ -58,51 +58,69 @@ private[stack] case class FileSelectorBuilder(
         L.child.text <-- b.validationMessage
       )
     )
-    FileSelector(
+
+    val fileSourceFromInput = i
+      .events(onInput)
+      .map(_ => i.ref.files.toList)
+      .toObservable
+      .toWeakSignal
+      .map(_.getOrElse(i.ref.files.toList))
+
+    new FileSelector(
       root,
-      i.events(onInput)
-        .map(_ => i.ref.files.toList)
-        .toObservable
-        .toWeakSignal
-        .map(_.getOrElse(i.ref.files.toList))
+      fileSourceFromInput.changes
+        .mergeWith(valueIn.toObservable.toWeakSignal.changes.collect({
+          case Some(x) => x
+        }))
+        .toSignal(Nil)
     )
   }
 }
-case class FileSelector(root: HtmlElement, value: Signal[List[dom.File]]) extends Comp
+class FileSelector private[stack] (
+    val root: HtmlElement,
+    val value: Signal[List[dom.File]]
+) extends Comp
 object FileSelector extends Companion[FileSelector, FileSelectorBuilder] {
-  object keys
+  protected object keys
       extends LabelKey
       with DescriptionKey
       with MessageKey
       with DisabledKey
       with VariantKey
-      with ValueKey
+      with ValueInOutKey {
+    protected type VariantValue = Option[Validation]
+    protected type Builder = FileSelectorBuilder
+
+    protected val labelKey =
+      mkIn((b, v) => b.copy(label = v))
+    protected val descriptionKey =
+      mkIn((b, v) => b.copy(description = v))
+    protected val messageKey =
+      mkIn((b, v) => b.copy(validationMessage = v))
+
+    protected val disabledKey =
+      mkIn((b, v) => b.copy(disabled = v))
+
+    protected val variantKey =
+      mkIn((b, v) => b.copy(validation = v))
+
+    protected type ValueType = List[dom.File]
+    protected val valueKeyOut =
+      mkOut((b, v) => b.copy(value = v))
+    protected val valueKeyIn =
+      mkIn((b, v) => b.copy(valueIn = v))
+  }
   type X = keys.type
   val x = keys
   def empty = FileSelectorBuilder(
-    Signal.fromValue(""),
-    Signal.fromValue(""),
-    Signal.fromValue(""),
-    Observer.empty[List[dom.File]],
-    Signal.fromValue(None),
-    Signal.fromValue(false)
+    label = Signal.fromValue(""),
+    description = Signal.fromValue(""),
+    validationMessage = Signal.fromValue(""),
+    value = Observer.empty[List[dom.File]],
+    valueIn = Signal.fromValue(Nil),
+    validation = Signal.fromValue(None),
+    disabled = Signal.fromValue(false)
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-
-  implicit val assignVariant: In[K.variant, Option[FileSelector.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-
-  implicit val assignOut: Out[K.value, List[dom.File]] =
-    mk((b, v) => b.copy(value = v))
 
   sealed trait Validation
   private[stack] object Validation {
@@ -114,5 +132,4 @@ object FileSelector extends Companion[FileSelector, FileSelectorBuilder] {
   val Error: Validation = Validation.Error
   val Success: Validation = Validation.Success
 
-  
 }

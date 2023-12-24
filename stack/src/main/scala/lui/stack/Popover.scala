@@ -3,7 +3,6 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui.{_}
-import stack.{KeyTypes => K}
 
 private[stack] case class PopoverBuilder(
     child: Source[HtmlElement],
@@ -53,21 +52,33 @@ private[stack] case class PopoverBuilder(
       )
     )
 
-    Popover(root)
+    new Popover(root)
   }
 }
 
-case class Popover(root: HtmlElement) extends Comp
+class Popover private[stack] (val root: HtmlElement) extends Comp
 
 /** Popover's parent element must be position: relative
   */
-
 object Popover extends Companion[Popover, PopoverBuilder] {
-  object keys
+  protected object keys
       extends ChildKey
       with WithCloseButtonKey
-      with ActiveKey
-      with ValueKey
+      with ActiveInOutKey {
+    protected type Builder = PopoverBuilder
+    protected type ChildValue = HtmlElement
+
+    protected val activeKeyIn =
+      mkIn((b, v) => b.copy(activeIn = v))
+    protected val withCloseButtonKey =
+      mkIn((b, v) => b.copy(hasClose = v))
+    protected val childKey =
+      mkIn((b, v) => b.copy(child = v))
+
+    protected val activeKeyOut =
+      mkOut((b, v) => b.copy(activeOut = v))
+
+  }
   type X = keys.type
   val x = keys
 
@@ -77,14 +88,5 @@ object Popover extends Companion[Popover, PopoverBuilder] {
     Signal.fromValue(false),
     Observer.empty[Boolean]
   )
-
-  implicit val assignChild: In[K.child, HtmlElement] =
-    mk((b, v) => b.copy(child = v))
-  implicit val assignHasClose: In[K.withCloseButton, Boolean] =
-    mk((b, v) => b.copy(hasClose = v))
-  implicit val assignIn: In[K.active, Boolean] =
-    mk((b, v) => b.copy(activeIn = v))
-  implicit val assignOut: Out[K.value, Boolean] =
-    mk((b, v) => b.copy(activeOut = v))
 
 }

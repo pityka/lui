@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L
 import lui.util._
 import lui._
 import stack.{KeyTypes => K}
-case class Banner(root: HtmlElement) extends Component
+class Banner private[stack] (val root: HtmlElement, val active: Source[Boolean]) extends Component
 private[stack] case class BannerBuilder(
     private val child: Source[HtmlElement],
     private val variant: Source[Banner.Variant],
@@ -40,6 +40,7 @@ private[stack] case class BannerBuilder(
           case Variant.DangerImportant => "s-banner__danger s-banner__important"
         }) + base
       },
+      position := "static", // override stack css
       hidden <-- effectiveState.map(b => !b),
       div(
         cls := "d-flex flex__center s-banner__container",
@@ -58,24 +59,32 @@ private[stack] case class BannerBuilder(
                 svg.d := "M12 3.41 10.59 2 7 5.59 3.41 2 2 3.41 5.59 7 2 10.59 3.41 12 7 8.41 10.59 12 12 10.59 8.41 7 12 3.41Z"
               )
             ),
-            onClick.mapToUnit.map(_ => false) --> state.writer
+            onClick.mapToUnit.map(_ => false) --> state.writer,
+            effectiveState --> activeOut
           )
         )
       )
     )
-    Banner(root)
+    new Banner(root, effectiveState)
   }
 
 }
 
 object Banner extends Companion[Banner, BannerBuilder] {
-  
 
-  object keys {
-    val child = new InSyntax[K.child]
-    val variant = new InSyntax[K.variant]
-    val active = new InSyntax[K.active]
-    val value = new InSyntax[K.value]
+  val assignChild: In[K.child, HtmlElement] =
+    mkIn((b, v) => b.copy(child = v))
+  val assignV: In[K.variant, Variant] =
+    mkIn((b, v) => b.copy(variant = v))
+  val assignIn: In[K.active, Boolean] =
+    mkIn((b, v) => b.copy(activeIn = v))
+  val assignOut: Out[K.active, Boolean] =
+    mkOut((b, v) => b.copy(activeOut = v))
+
+  protected object keys {
+    val child = new InSyntax[K.child, BannerBuilder, HtmlElement](assignChild)
+    val variant = new InSyntax[K.variant, BannerBuilder, Variant](assignV)
+    val active = new InOutSyntax[K.active, BannerBuilder, Boolean](assignIn, assignOut)
   }
   type X = keys.type
   val x = keys
@@ -107,14 +116,5 @@ object Banner extends Companion[Banner, BannerBuilder] {
     activeIn = Signal.fromValue(false),
     activeOut = Observer.empty[Boolean]
   )
-
-  implicit val assignChild: In[K.child, HtmlElement] =
-    mk((b, v) => b.copy(child = v))
-  implicit val assignV: In[K.variant, Variant] =
-    mk((b, v) => b.copy(variant = v))
-  implicit val assignIn: In[K.active, Boolean] =
-    mk((b, v) => b.copy(activeIn = v))
-  implicit val assignOut: Out[K.value, Boolean] =
-    mk((b, v) => b.copy(activeOut = v))
 
 }

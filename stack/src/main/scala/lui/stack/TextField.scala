@@ -3,7 +3,6 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui.{_}
-import stack.{KeyTypes => K}
 
 private[stack] case class TextFieldBuilder(
     label: Source[String],
@@ -11,6 +10,7 @@ private[stack] case class TextFieldBuilder(
     placeholder: Source[String],
     validationMessage: Source[String],
     value: Sink[String],
+    valueIn: Source[String],
     size: Source[TextField.Size],
     validation: Source[Option[TextField.Validation]],
     disabled: Source[Boolean]
@@ -67,7 +67,7 @@ private[stack] case class TextFieldBuilder(
         L.child.text <-- b.validationMessage
       )
     )
-    TextField(
+    new TextField(
       root,
       i.events(onInput)
         .map(_ => i.ref.value)
@@ -77,9 +77,12 @@ private[stack] case class TextFieldBuilder(
     )
   }
 }
-case class TextField(root: HtmlElement, value: Signal[String]) extends Comp
+class TextField private[stack] (
+    val root: HtmlElement,
+    val value: Signal[String]
+) extends Comp
 object TextField extends Companion[TextField, TextFieldBuilder] {
-  object keys
+  protected object keys
       extends LabelKey
       with DescriptionKey
       with PlaceholderKey
@@ -87,7 +90,28 @@ object TextField extends Companion[TextField, TextFieldBuilder] {
       with DisabledKey
       with VariantKey
       with SizeKey
-      with ValueKey
+      with ValueInOutKey {
+
+    protected type SizeValue = TextField.Size
+    protected type VariantValue = Option[TextField.Validation]
+    protected type Builder = TextFieldBuilder
+    protected val labelKey = mkIn((b, v) => b.copy(label = v))
+    protected val disabledKey = mkIn((b, v) => b.copy(disabled = v))
+
+    protected val descriptionKey = mkIn((b, v) => b.copy(description = v))
+    protected val messageKey = mkIn((b, v) => b.copy(validationMessage = v))
+
+    protected val placeholderKey = mkIn((b, v) => b.copy(placeholder = v))
+    protected val variantKey = mkIn((b, v) => b.copy(validation = v))
+    protected val sizeKey = mkIn((b, v) => b.copy(size = v))
+
+    protected type ValueType = String
+    protected val valueKeyOut =
+      mkOut((b, v) => b.copy(value = v))
+    protected val valueKeyIn =
+      mkIn((b, v) => b.copy(valueIn = v))
+
+  }
   type X = keys.type
   val x = keys
   def empty = TextFieldBuilder(
@@ -96,30 +120,11 @@ object TextField extends Companion[TextField, TextFieldBuilder] {
     Signal.fromValue(""),
     Signal.fromValue(""),
     Observer.empty[String],
+    Signal.fromValue(""),
     Signal.fromValue(TextField.Medium),
     Signal.fromValue(None),
     Signal.fromValue(false)
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignPlaceholder: In[K.placeholder, String] =
-    mk((b, v) => b.copy(placeholder = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-
-  implicit val assignVariant: In[K.variant, Option[TextField.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-  implicit val assignSize: In[K.size, TextField.Size] =
-    mk((b, v) => b.copy(size = v))
-
-  implicit val assignOut: Out[K.value, String] =
-    mk((b, v) => b.copy(value = v))
 
   sealed trait Validation
   private[stack] object Validation {

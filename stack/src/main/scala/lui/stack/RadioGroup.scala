@@ -3,15 +3,15 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui.{_}
-import stack.{KeyTypes => K}
+import java.util.UUID
 
 private[stack] case class RadioOptionBuilder(
     label: Source[String],
     description: Source[String],
     validationMessage: Source[String],
     inValue: Source[String],
-    name: Source[String],
     checked: Sink[Boolean],
+    checkedIn: Source[Boolean],
     validation: Source[Option[RadioOption.Validation]],
     disabled: Source[Boolean]
 ) extends Builder[RadioOption] {
@@ -41,26 +41,29 @@ private[stack] case class RadioOptionBuilder(
       typ := "radio",
       cls := "s-radio",
       onInput.mapToChecked --> b.checked,
-      nameAttr <-- b.name,
       L.value <-- b.inValue,
       L.disabled <-- b.disabled,
       idAttr := rand
     )
 
-    val root = div(
-      cls <-- containerStyle,
-      i,
-      L.label(
-        forId := rand,
-        cls := "flex--item d-block s-label",
-        L.child.text <-- b.label,
-        p(cls := "s-description mt2", L.child.text <-- b.description),
-        p(
-          cls := "flex--item s-input-message mb0",
-          L.child.text <-- b.validationMessage
+    def changeName(n: String): Unit = i.amend(nameAttr := n)
+
+    val root = {
+      div(
+        cls <-- containerStyle,
+        i,
+        L.label(
+          forId := rand,
+          cls := "flex--item d-block s-label",
+          L.child.text <-- b.label,
+          p(cls := "s-description mt2", L.child.text <-- b.description),
+          p(
+            cls := "flex--item s-input-message mb0",
+            L.child.text <-- b.validationMessage
+          )
         )
       )
-    )
+    }
     RadioOption(
       root,
       i.events(onInput)
@@ -70,23 +73,51 @@ private[stack] case class RadioOptionBuilder(
           _.getOrElse(
             (i.ref.value, i.ref.checked)
           )
-        )
+        ),
+      changeName _
     )
   }
 }
-case class RadioOption(root: HtmlElement, checked: Signal[(String, Boolean)])
-    extends Comp
+case class RadioOption(
+    root: HtmlElement,
+    checked: Signal[(String, Boolean)],
+    changeName: String => Unit
+) extends Comp
 
 object RadioOption extends Companion[RadioOption, RadioOptionBuilder] {
-  object keys
+  protected object keys
       extends LabelKey
       with DescriptionKey
       with MessageKey
       with DisabledKey
       with InValueKey
-      with NameKey
       with VariantKey
-      with CheckedKey
+      with CheckedInOutKey {
+    type VariantValue = Option[Validation]
+    type InValueType = String
+    protected type Builder = RadioOptionBuilder
+
+    protected val labelKey =
+      mkIn((b, v) => b.copy(label = v))
+    protected val descriptionKey =
+      mkIn((b, v) => b.copy(description = v))
+    protected val messageKey =
+      mkIn((b, v) => b.copy(validationMessage = v))
+
+    protected val disabledKey =
+      mkIn((b, v) => b.copy(disabled = v))
+
+    protected val variantKey =
+      mkIn((b, v) => b.copy(validation = v))
+    protected val inValueKey =
+      mkIn((b, v) => b.copy(inValue = v))
+
+    protected type CheckedValue = Boolean
+    protected val checkedKeyOut =
+      mkOut((b, v) => b.copy(checked = v))
+    protected val checkedKeyIn =
+      mkIn((b, v) => b.copy(checkedIn = v))
+  }
   type X = keys.type
   val x = keys
 
@@ -95,31 +126,11 @@ object RadioOption extends Companion[RadioOption, RadioOptionBuilder] {
     Signal.fromValue(""),
     Signal.fromValue(""),
     Signal.fromValue(""),
-    Signal.fromValue(""),
     Observer.empty[Boolean],
+    Signal.fromValue(false),
     Signal.fromValue(None),
     Signal.fromValue(false)
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-  implicit val assignValue: In[K.inValue, String] =
-    mk((b, v) => b.copy(inValue = v))
-  implicit val assignName: In[K.name, String] =
-    mk((b, v) => b.copy(name = v))
-
-  implicit val assignVariant: In[K.variant, Option[RadioOption.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-
-  implicit val assignOut: Out[K.checked, Boolean] =
-    mk((b, v) => b.copy(checked = v))
 
   sealed trait Validation
   private[stack] object Validation {
@@ -156,27 +167,65 @@ private[stack] case class RadioGroupBuilder(
           )
           .map(_.flatten.headOption)
     }
+    val name = UUID.randomUUID().toString()
     val root = fieldSet(
       cls <-- containerStyle,
       legend(cls := "s-label", L.child.text <-- b.label),
-      L.children <-- b.children.toObservable.map(_.map(_.root)),
+      L.children <-- b.children.toObservable.map(_.map { option =>
+        option.changeName(name)
+        option.root
+      }),
       unifiedSource.changes --> b.checked
     )
 
-    RadioGroup(root, unifiedSource)
+    new RadioGroup(root, unifiedSource)
 
   }
 }
-case class RadioGroup(root: HtmlElement, checked: Signal[Option[String]])
-    extends Comp
+class RadioGroup private[stack] (
+    val root: HtmlElement,
+    val checked: Signal[Option[String]]
+) extends Comp
 object RadioGroup extends Companion[RadioGroup, RadioGroupBuilder] {
 
-  object keys
+  protected object keys
       extends LabelKey
       with HorizontalKey
       with ChildKey
       with ChildrenKey
-      with CheckedKey
+      with CheckedKey {
+
+    protected type Builder = RadioGroupBuilder
+    protected type ChildValue = RadioOption
+
+    protected type CheckedValue = Option[String]
+    protected val checkedKey =
+      mkOut((b, v) => b.copy(checked = v))
+
+    protected val labelKey =
+      mkIn((b, v) => b.copy(label = v))
+    protected val horizontalKey =
+      mkIn((b, v) => b.copy(horizontal = v))
+    protected val childKey =
+      mkIn((b, v) =>
+        b.copy(children =
+          b.children.toObservable.toWeakSignal
+            .map(_.getOrElse(Nil))
+            .combineWith(v.toObservable.toWeakSignal)
+            .map { case (a, b) => a ++ b.toList }
+        )
+      )
+    protected val childrenKey =
+      mkIn((b, v) =>
+        b.copy(children =
+          b.children.toObservable.toWeakSignal
+            .map(_.getOrElse(Nil))
+            .combineWith(v.toObservable.toWeakSignal)
+            .map { case (a, b) => a ++ b.toList.flatten }
+        )
+      )
+
+  }
   type X = keys.type
   val x = keys
 
@@ -186,31 +235,5 @@ object RadioGroup extends Companion[RadioGroup, RadioGroupBuilder] {
     Signal.fromValue(Nil),
     Observer.empty[Option[String]]
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignHorizontal: In[K.horizontal, Boolean] =
-    mk((b, v) => b.copy(horizontal = v))
-  implicit val assignChild: In[K.child, RadioOption] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList }
-      )
-    )
-  implicit val assignChildren: In[K.children, Seq[RadioOption]] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList.flatten }
-      )
-    )
-
-  implicit val assignOut: Out[K.checked, Option[String]] =
-    mk((b, v) => b.copy(checked = v))
 
 }

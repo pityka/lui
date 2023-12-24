@@ -3,7 +3,6 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui._
-import stack.{KeyTypes => K}
 
 private[stack] case class CheckboxBuilder(
     label: Source[String],
@@ -38,14 +37,18 @@ private[stack] case class CheckboxBuilder(
 
     val rand = "radio-id-" + scala.util.Random.nextLong().toString
 
+    val checkedState = Var(false)
+
     val i = input(
+      inChecked --> checkedState.writer,
+      checkedState --> checked,
+      L.checked <-- checkedState,
+      onInput.mapToChecked --> checkedState.writer,
       typ := "checkbox",
       cls := "s-checkbox",
-      onInput.mapToChecked --> b.checked,
       L.disabled <-- b.disabled,
       idAttr := rand,
       L.value <-- b.inValue,
-      L.checked <-- b.inChecked
     )
 
     val root = div(
@@ -62,7 +65,7 @@ private[stack] case class CheckboxBuilder(
         )
       )
     )
-    Checkbox(
+    new Checkbox(
       root,
       i.events(onInput)
         .map(_ => (i.ref.value, i.ref.checked))
@@ -71,13 +74,19 @@ private[stack] case class CheckboxBuilder(
           _.getOrElse(
             (i.ref.value, i.ref.checked)
           )
-        )
+        ),
+        b.inValue,
+        checkedState.writer
     )
   }
 }
 
-case class Checkbox(root: HtmlElement, checked: Signal[(String, Boolean)])
-    extends Component
+class Checkbox private[stack] (
+    val root: HtmlElement,
+    val checked: Signal[(String, Boolean)],
+    val value: Source[String],
+    val inChecked: Sink[Boolean]
+) extends Component
 
 object Checkbox extends Companion[Checkbox, CheckboxBuilder] {
 
@@ -87,9 +96,33 @@ object Checkbox extends Companion[Checkbox, CheckboxBuilder] {
       with MessageKey
       with DisabledKey
       with InValueKey
-      with InCheckedKey
-      with VariantKey
-      with CheckedKey
+      with CheckedInOutKey
+      with VariantKey {
+    protected type VariantValue = Option[Validation]
+    protected type Builder = CheckboxBuilder
+
+    protected type CheckedValue = Boolean
+
+    protected val labelKey =
+      mkIn((b, v) => b.copy(label = v))
+    protected val descriptionKey =
+      mkIn((b, v) => b.copy(description = v))
+    protected val messageKey =
+      mkIn((b, v) => b.copy(validationMessage = v))
+
+    protected val disabledKey =
+      mkIn((b, v) => b.copy(disabled = v))
+
+    protected val variantKey =
+      mkIn((b, v) => b.copy(validation = v))
+    protected val checkedKeyIn =
+      mkIn((b, v) => b.copy(inChecked = v))
+    protected val inValueKey =
+      mkIn((b, v) => b.copy(inValue = v))
+
+    protected val checkedKeyOut =
+      mkOut((b, v) => b.copy(checked = v))
+  }
 
   type X = keys.type
   val x = keys
@@ -105,25 +138,7 @@ object Checkbox extends Companion[Checkbox, CheckboxBuilder] {
     Signal.fromValue(false)
   )
 
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-  implicit val assignValue: In[K.inValue, String] =
-    mk((b, v) => b.copy(inValue = v))
-  implicit val assignChecked: In[K.inChecked, Boolean] =
-    mk((b, v) => b.copy(inChecked = v))
-
-  implicit val assignVariant: In[K.variant, Option[Checkbox.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-
-  implicit val assignOut: Out[K.checked, Boolean] =
-    mk((b, v) => b.copy(checked = v))
+  // implicit val assignOut: Out[K.checked, Boolean] =
 
   sealed trait Validation
   private[stack] object Validation {
@@ -140,7 +155,8 @@ private[stack] case class CheckGroupBuilder(
     label: Source[String],
     horizontal: Source[Boolean],
     children: Source[Seq[Checkbox]],
-    checked: Sink[Seq[String]]
+    checked: Sink[Seq[String]],
+    checkedIn: Source[Seq[String]],
 ) extends Builder[CheckGroup] {
   def build() = {
     val b = this
@@ -148,7 +164,8 @@ private[stack] case class CheckGroupBuilder(
       if (h) "s-check-group s-check-group__horizontal"
       else "s-check-group"
     }
-    val unifiedSource = b.children.toObservable.toWeakSignal.flatMap {
+    
+    val unifiedSource: Signal[Seq[String]] = b.children.toObservable.toWeakSignal.flatMap {
       case None => Signal.fromValue(Nil)
       case Some(chil) =>
         Signal
@@ -159,26 +176,75 @@ private[stack] case class CheckGroupBuilder(
           )
           .map(_.flatten)
     }
+
+    val xs: Signal[Observer[Seq[String]]] = 
+      b.children.toObservable.toWeakSignal.map{
+      case None => Observer.empty[Seq[String]]
+      case Some(chil) =>
+          Observer[Seq[String]]{ values =>
+              chil.foreach{ checkbox =>
+                checkbox.value.-->(checkboxValue => if (values.contains(checkboxValue)) {
+                  checkbox.inChecked.toObserver.onNext(true)
+                })  
+              }
+            } 
+    }
+
+
     val root = fieldSet(
+      xs.-->(observer => checkedIn.-->(values => observer.onNext(values))),
       cls <-- containerStyle,
       legend(cls := "s-label", L.child.text <-- b.label),
       L.children <-- b.children.toObservable.map(_.map(_.root)),
       unifiedSource --> b.checked
     )
 
-    CheckGroup(root, unifiedSource)
+    new CheckGroup(root, unifiedSource)
 
   }
 }
-case class CheckGroup(root: HtmlElement, checked: Signal[Seq[String]])
-    extends Component
+class CheckGroup private[stack] (
+    val root: HtmlElement,
+    val checked: Signal[Seq[String]]
+) extends Component
 object CheckGroup extends Companion[CheckGroup, CheckGroupBuilder] {
-  object keys
+  protected object keys
       extends LabelKey
       with HorizontalKey
       with ChildKey
       with ChildrenKey
-      with CheckedKey
+      with CheckedInOutKey {
+    protected type Builder = CheckGroupBuilder
+    protected type ChildValue = Checkbox
+
+    protected type CheckedValue = Seq[String]
+    protected val checkedKeyOut =
+      mkOut((b, v) => b.copy(checked = v))
+    protected val checkedKeyIn =
+      mkIn((b, v) => b.copy(checkedIn = v))
+    protected val labelKey =
+      mkIn((b, v) => b.copy(label = v))
+    protected val horizontalKey =
+      mkIn((b, v) => b.copy(horizontal = v))
+    protected val childKey =
+      mkIn((b, v) =>
+        b.copy(children =
+          b.children.toObservable.toWeakSignal
+            .map(_.getOrElse(Nil))
+            .combineWith(v.toObservable.toWeakSignal)
+            .map { case (a, b) => a ++ b.toList }
+        )
+      )
+    protected val childrenKey =
+      mkIn((b, v) =>
+        b.copy(children =
+          b.children.toObservable.toWeakSignal
+            .map(_.getOrElse(Nil))
+            .combineWith(v.toObservable.toWeakSignal)
+            .map { case (a, b) => a ++ b.toList.flatten }
+        )
+      )
+  }
   type X = keys.type
   val x = keys
 
@@ -186,33 +252,8 @@ object CheckGroup extends Companion[CheckGroup, CheckGroupBuilder] {
     Signal.fromValue(""),
     Signal.fromValue(false),
     Signal.fromValue(Nil),
-    Observer.empty[Seq[String]]
+    Observer.empty[Seq[String]],
+    Signal.fromValue(Nil)
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignHorizontal: In[K.horizontal, Boolean] =
-    mk((b, v) => b.copy(horizontal = v))
-  implicit val assignChild: In[K.child, Checkbox] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList }
-      )
-    )
-  implicit val assignChildren: In[K.children, Seq[Checkbox]] =
-    mk((b, v) =>
-      b.copy(children =
-        b.children.toObservable.toWeakSignal
-          .map(_.getOrElse(Nil))
-          .combineWith(v.toObservable.toWeakSignal)
-          .map { case (a, b) => a ++ b.toList.flatten }
-      )
-    )
-
-  implicit val assignOut: Out[K.checked, Seq[String]] =
-    mk((b, v) => b.copy(checked = v))
 
 }

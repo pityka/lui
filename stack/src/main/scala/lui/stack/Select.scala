@@ -3,13 +3,13 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.api.L
 import lui.util._
 import lui.{_}
-import stack.{KeyTypes => K}
 private[stack] case class SelectBuilder(
     label: Source[String],
     description: Source[String],
     validationMessage: Source[String],
     options: Source[Seq[String]],
     value: Sink[Int],
+    valueIn: Source[Int],
     size: Source[Select.Size],
     validation: Source[Option[Select.Validation]],
     disabled: Source[Boolean]
@@ -71,15 +71,16 @@ private[stack] case class SelectBuilder(
         L.child.text <-- b.validationMessage
       )
     )
-    Select(root, i.events(onInput).map(_ => i.ref.value.toInt))
+    new Select(root, i.events(onInput).map(_ => i.ref.value.toInt))
   }
 
 }
 
-case class Select(root: HtmlElement, value: EventStream[Int]) extends Comp
+class Select private[stack] (val root: HtmlElement, val value: EventStream[Int])
+    extends Comp
 
 object Select extends Companion[Select, SelectBuilder] {
-  object keys
+  protected object keys
       extends LabelKey
       with DescriptionKey
       with MessageKey
@@ -87,40 +88,49 @@ object Select extends Companion[Select, SelectBuilder] {
       with VariantKey
       with SizeKey
       with OptionsKey
-      with ValueKey
+      with ValueInOutKey {
+    protected type SizeValue = Size
+    protected type VariantValue = Option[Validation]
+    protected type OptionsValue = Seq[String]
+    protected type Builder = SelectBuilder
+
+    protected val labelKey =
+      mkIn((b, v) => b.copy(label = v))
+    protected val descriptionKey =
+      mkIn((b, v) => b.copy(description = v))
+    protected val messageKey =
+      mkIn((b, v) => b.copy(validationMessage = v))
+
+    protected val disabledKey =
+      mkIn((b, v) => b.copy(disabled = v))
+
+    protected val variantKey =
+      mkIn((b, v) => b.copy(validation = v))
+    protected val optionsKey =
+      mkIn((b, v) => b.copy(options = v))
+    protected val sizeKey =
+      mkIn((b, v) => b.copy(size = v))
+
+    protected type ValueType = Int
+    protected val valueKeyOut =
+      mkOut((b, v) => b.copy(value = v))
+    protected val valueKeyIn =
+      mkIn((b, v) => b.copy(valueIn = v))
+  }
   type X = keys.type
   val x = keys
 
   def empty = SelectBuilder(
-    Signal.fromValue(""),
-    Signal.fromValue(""),
-    Signal.fromValue(""),
-    Signal.fromValue(Nil),
-    Observer.empty[Int],
-    Signal.fromValue(Select.Medium),
-    Signal.fromValue(None),
-    Signal.fromValue(false)
+    label = Signal.fromValue(""),
+    description = Signal.fromValue(""),
+    validationMessage = Signal.fromValue(""),
+    options = Signal.fromValue(Nil),
+    value = Observer.empty[Int],
+    valueIn = Signal.fromValue(0),
+    size = Signal.fromValue(Select.Medium),
+    validation = Signal.fromValue(None),
+    disabled = Signal.fromValue(false)
   )
-
-  implicit val assignLabel: In[K.label, String] =
-    mk((b, v) => b.copy(label = v))
-  implicit val assignDescription: In[K.description, String] =
-    mk((b, v) => b.copy(description = v))
-  implicit val assignMessage: In[K.message, String] =
-    mk((b, v) => b.copy(validationMessage = v))
-
-  implicit val assignDisabled: In[K.disabled, Boolean] =
-    mk((b, v) => b.copy(disabled = v))
-
-  implicit val assignVariant: In[K.variant, Option[Select.Validation]] =
-    mk((b, v) => b.copy(validation = v))
-  implicit val assignSize: In[K.size, Select.Size] =
-    mk((b, v) => b.copy(size = v))
-  implicit val assignOptions: In[K.options, Seq[String]] =
-    mk((b, v) => b.copy(options = v))
-
-  implicit val assignOut: Out[K.value, Int] =
-    mk((b, v) => b.copy(value = v))
 
   sealed trait Validation
   private[stack] object Validation {

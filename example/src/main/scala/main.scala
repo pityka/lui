@@ -95,7 +95,6 @@ object Demo {
       div(
         cls := "flex--item fl-shrink0 ws4 md:w-auto md:d-none print:d-none",
         div(
-          cls := "ps-fixed t64 py24 px8 ws4",
           p(
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
           ),
@@ -173,7 +172,7 @@ object Demo {
                   base.filter(_.contains(keyw)).toList.distinct.map { word =>
                     st.Checkbox(
                       _.label := word,
-                      _.inChecked <-- selecteds.signal
+                      _.checked <-- selecteds.signal
                         .map(v => v.contains(word)),
                       _.checked --> selecteds.updater[Boolean] {
                         case (set, true)  => set + word
@@ -188,31 +187,48 @@ object Demo {
       )
     )
   )
+  val bannerButton = st.Button(_.label := "toggle bannner")
 
-  val nav = st.NavigationGroup[ReactiveHtmlElement[dom.HTMLDivElement]](
+  val bannerElem = st.Banner(
+    _.variant := st.Banner.Danger,
+    _.child := (span("yaay"): HtmlElement),
+    _.active <-- bannerButton.click.map(_ => true)
+  )
+
+  val bannerTest =
+    div(
+      bannerButton,
+      span(
+        child.text <-- bannerElem.active
+      )
+    )
+
+  val mainTopNav = st.NavigationGroup[ReactiveHtmlElement[dom.HTMLDivElement]](
     _.theme := st.NavigationStyle.NavigationHorizontal,
     _.children := Seq(
-      st.NavigationItem(mainContentArea)(_.label := "a"),
-      st.NavigationItem(div(cls := "pt64", p("blah blah")))(_.label := "b")
+      st.NavigationItem(bannerTest)(_.label := "banner")
     )
   )
 
   def root() = div(
-    st.Banner(
-      _.variant := st.Banner.Danger,
-      _.child := (span("yaay"): HtmlElement),
-      _.active <-- formStateWhenClicked.map(_._3).map {
-        case (_, _, _, a, b, c) => a._2 && b._2 && c._2
-      }
-    ),
+    // minimal page frame:
     div(
-      cls := "s-topbar ps-fixed w-screen mb16",
-      div(
-        cls := "s-topbar--container   px8",
-        nav
+      // 1. banner for flash info
+      bannerElem,
+      div( // 2. top navigation
+        cls := "s-topbar w-screen mb16",
+        div(
+          cls := "s-topbar--container   px8",
+          mainTopNav
+        )
       )
     ),
-    child <-- nav.value.toWeakSignal.map(_.getOrElse(mainContentArea))
+    div( // 3. area below top navigation bar (most of the screen)
+      cls := "px-fixed t64 py24 px8 ",
+      child <-- mainTopNav.activeItem.toWeakSignal.map(
+        _.getOrElse(mainContentArea)
+      )
+    )
   )
 
 }
